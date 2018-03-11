@@ -667,6 +667,10 @@ def gen_crm_mesh(num_x, num_y, span, chord, span_cos_spacing=0., chord_cos_spaci
          [1.,  1780.737, 1156.753, 263.827, -3.75,   107.4] # 19
         ])
 
+
+    # scale the yle values by the span (note this is all in inches so need to convert)
+    raw_crm_points[:,2] = raw_crm_points[:,2] / np.max(raw_crm_points[:,2]) * span / 2 / 0.0254 
+
     # Get the leading edge of the raw crm points
     le = np.vstack((raw_crm_points[:,1],
                     raw_crm_points[:,2],

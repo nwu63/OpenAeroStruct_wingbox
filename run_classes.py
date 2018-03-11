@@ -264,6 +264,7 @@ class OASProblem(object):
                     # Structural values are based on aluminum 7075
                     'E' : 70.e9,            # [Pa] Young's modulus of the spar
                     'G' : 30.e9,            # [Pa] shear modulus of the spar
+                    'Kbt' : 0.,             # [Pa] bend-twist couple constant of the spar
                     'yield' : 500.e6 / 2.5, # [Pa] yield stress divided by 2.5 for limiting case
                     'mrho' : 3.e3,          # [kg/m^3] material density
                     'fem_origin' : 0.35,    # normalized chordwise location of the spar
@@ -494,7 +495,7 @@ class OASProblem(object):
                 self.prob.driver.options['optimizer'] = "SNOPT"
                 self.prob.driver.opt_settings = {'Major optimality tolerance': 1e-8,
                                                  'Major feasibility tolerance': 1e-8,
-                                                 'Major iterations limit':50,
+                                                 'Major iterations limit':500,
                                                  'Minor iterations limit':2000,
                                                  'Iterations limit':1000
                                                  }

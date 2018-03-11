@@ -649,6 +649,11 @@ class VLMGeometry(Component):
                                             fd_unknowns=['normals', 'S_ref'],
                                             fd_states=[])
             jac.update(cs_jac)
+        cs_jac = self.fd_jacobian(params, unknowns, resids,
+                                            fd_params=['def_mesh'],
+                                            fd_unknowns=['chords'],
+                                            fd_states=[])
+        jac.update(cs_jac)
 
         for iz, v in zip((0, ny*3), (.75, .25)):
             np.fill_diagonal(jac['b_pts', 'def_mesh'][:, iz:], v)
@@ -696,19 +701,7 @@ class VLMGeometry(Component):
                 jac['lengths', 'def_mesh'][i, (j*ny+i)*3 + 2] -= dz[j] / l
                 jac['lengths', 'def_mesh'][i, ((j+1)*ny+i)*3 + 2] += dz[j] / l
 
-        jac['chords', 'def_mesh'] = np.zeros_like(jac['chords', 'def_mesh'])
-        for i in range(ny):
-            dx = mesh[0, i, 0] - mesh[-1, i, 0]
-            dy = mesh[0, i, 1] - mesh[-1, i, 1]
-            dz = mesh[0, i, 2] - mesh[-1, i, 2]
-            for j in range(1):
-                l = np.sqrt(dx**2 + dy**2 + dz**2)
-                jac['chords', 'def_mesh'][i, (j*ny+i)*3] += dx / l
-                jac['chords', 'def_mesh'][i, ((j+nx-1)*ny+i)*3] -= dx / l
-                jac['chords', 'def_mesh'][i, (j*ny+i)*3 + 1] += dy / l
-                jac['chords', 'def_mesh'][i, ((j+nx-1)*ny+i)*3 + 1] -= dy / l
-                jac['chords', 'def_mesh'][i, (j*ny+i)*3 + 2] += dz / l
-                jac['chords', 'def_mesh'][i, ((j+nx-1)*ny+i)*3 + 2] -= dz / l
+
 
         return jac
 

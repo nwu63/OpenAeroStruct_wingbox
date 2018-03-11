@@ -38,9 +38,9 @@ def chords_fem(mesh):
 
 def _assemble_system(nodes, A, J, Iy, Iz,
                      K_a, K_t, K_y, K_z,
-                     cons, E, G, x_gl, T,
-                     K_elem, S_a, S_t, S_y, S_z, T_elem,
-                     const2, const_y, const_z, n, size, K):
+                     cons, E, G, Kbt, x_gl, T,
+                     K_elem, S_a, S_t, S_y, S_z, S_k, T_elem,
+                     const2, const_y, const_z, const_k, n, size, K):
 
     """
     Assemble the structural stiffness matrix based on 6 degrees of freedom
@@ -52,11 +52,12 @@ def _assemble_system(nodes, A, J, Iy, Iz,
 
     # print(nodes, A, J, Iy, Iz)
     # Fortran
-    if fortran_flag:
+    #if fortran_flag:
+    if False:
         K = OAS_API.oas_api.assemblestructmtx(nodes, A, J, Iy, Iz,
                                      K_a, K_t, K_y, K_z,
                                      cons, E, G, x_gl, T,
-                                     K_elem, S_a, S_t, S_y, S_z, T_elem,
+                                     K_elem, S_a, S_t, S_y, S_z, S_k, T_elem,
                                      const2, const_y, const_z)
 
     # Python
@@ -86,11 +87,13 @@ def _assemble_system(nodes, A, J, Iy, Iz,
             GJ_L = G * J[ielem] / L
             EIy_L3 = E * Iy[ielem] / L**3
             EIz_L3 = E * Iz[ielem] / L**3
+            K2_GJL3 = Kbt**2 / (G*J[ielem]*L**3)
+            K_L = Kbt/L
 
             K_a[:, :] = EA_L * const2
             K_t[:, :] = GJ_L * const2
 
-            K_y[:, :] = EIy_L3 * const_y
+            K_y[:, :] = EIy_L3 * const_y + K2_GJL3 * const_k
             K_y[1, :] *= L
             K_y[3, :] *= L
             K_y[:, 1] *= L
@@ -107,6 +110,7 @@ def _assemble_system(nodes, A, J, Iy, Iz,
             K_elem += S_t.T.dot(K_t).dot(S_t)
             K_elem += S_y.T.dot(K_y).dot(S_y)
             K_elem += S_z.T.dot(K_z).dot(S_z)
+            K_elem += S_k * K_L
 
             res = T_elem.T.dot(K_elem).dot(T_elem)
 
@@ -220,6 +224,7 @@ class AssembleK(Component):
         # Get material properties from the surface dictionary
         self.E = surface['E']
         self.G = surface['G']
+        self.Kbt = surface['Kbt']
 
         # Set up arrays to easily set up the K matrix
         self.const2 = np.array([
@@ -237,6 +242,12 @@ class AssembleK(Component):
             [6, 4, -6, 2],
             [-12, -6, 12, -6],
             [6, 2, -6, 4],
+        ], dtype=data_type)
+        self.const_k = np.array([
+            [-12, 6, 12, 6],
+            [6, -3, -6, -3],
+            [12, -6, -12, -6],
+            [6, -3, -6, -3],
         ], dtype=data_type)
         self.x_gl = np.array([1, 0, 0], dtype=data_type)
 
@@ -264,6 +275,10 @@ class AssembleK(Component):
         self.S_z = np.zeros((4, 12), dtype=data_type)
         self.S_z[(0, 1, 2, 3), (1, 5, 7, 11)] = 1.
 
+        self.S_k = np.zeros((12, 12), dtype=data_type)
+        self.S_k[(3, 4, 9, 10), (4, 3, 10, 9)] = 1.
+        self.S_k[(3, 4, 9, 10), (10, 9, 4, 3)] = -1.
+
         if not fortran_flag:
             self.deriv_options['type'] = 'cs'
 
@@ -287,10 +302,10 @@ class AssembleK(Component):
                              params['A'], params['J'], params['Iy'],
                              params['Iz'], self.K_a, self.K_t,
                              self.K_y, self.K_z, self.cons,
-                             self.E, self.G, self.x_gl, self.T, self.K_elem,
-                             self.S_a, self.S_t, self.S_y, self.S_z,
+                             self.E, self.G, self.Kbt, self.x_gl, self.T, self.K_elem,
+                             self.S_a, self.S_t, self.S_y, self.S_z, self.S_k,
                              self.T_elem, self.const2, self.const_y,
-                             self.const_z, self.ny, self.size,
+                             self.const_z, self.const_k, self.ny, self.size,
                              self.K)
 
         unknowns['K'] = self.K
@@ -317,8 +332,8 @@ class AssembleK(Component):
                                          Iz, dparams['Iz'],
                                          self.K_a, self.K_t, self.K_y, self.K_z,
                                          self.cons, self.E, self.G, self.x_gl, self.T,
-                                         self.K_elem, self.S_a, self.S_t, self.S_y, self.S_z, self.T_elem,
-                                         self.const2, self.const_y, self.const_z)
+                                         self.K_elem, self.S_a, self.S_t, self.S_y, self.S_z, self.S_k, self.T_elem,
+                                         self.const2, self.const_y, self.const_z, self.const_k)
 
             dresids['K'] += Kd
 
@@ -326,8 +341,8 @@ class AssembleK(Component):
             nodesb, Ab, Jb, Iyb, Izb = OAS_API.oas_api.assemblestructmtx_b(nodes, A, J, Iy, Iz,
                                 self.K_a, self.K_t, self.K_y, self.K_z,
                                 self.cons, self.E, self.G, self.x_gl, self.T,
-                                self.K_elem, self.S_a, self.S_t, self.S_y, self.S_z, self.T_elem,
-                                self.const2, self.const_y, self.const_z, self.K, dresids['K'])
+                                self.K_elem, self.S_a, self.S_t, self.S_y, self.S_z, self.S_k, self.T_elem,
+                                self.const2, self.const_y, self.const_z, self.const_k, self.K, dresids['K'])
 
             dparams['nodes'] += nodesb
             dparams['A'] += Ab
