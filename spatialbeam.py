@@ -93,7 +93,8 @@ def _assemble_system(nodes, A, J, Iy, Iz,
             K_a[:, :] = EA_L * const2
             K_t[:, :] = GJ_L * const2
 
-            K_y[:, :] = EIy_L3 * const_y + K2_GJL3 * const_k
+            #K_y[:, :] = EIy_L3 * const_y + K2_GJL3 * const_k
+            K_y[:, :] = EIy_L3 * const_y
             K_y[1, :] *= L
             K_y[3, :] *= L
             K_y[:, 1] *= L
@@ -110,12 +111,14 @@ def _assemble_system(nodes, A, J, Iy, Iz,
             K_elem += S_t.T.dot(K_t).dot(S_t)
             K_elem += S_y.T.dot(K_y).dot(S_y)
             K_elem += S_z.T.dot(K_z).dot(S_z)
-            K_elem += S_k * K_L
+            #K_elem += S_k * K_L
 
             res = T_elem.T.dot(K_elem).dot(T_elem)
 
             in0, in1 = ielem, ielem+1
 
+            if (ielem == 0):
+                print(K_elem)
             # Populate the full matrix with stiffness
             # contributions from each node
             K[6*in0:6*in0+6, 6*in0:6*in0+6] += res[:6, :6]
