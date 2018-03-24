@@ -271,6 +271,7 @@ class OASProblem(object):
                     'loads' : None,         # [N] allow the user to input loads
                     'disp' : None,          # [m] nodal displacements of the FEM model
                     'strength_factor_for_upper_skin' : 1., # If strength of upper skin is greater than the material props, use factor greater than 1.
+                    'theta' : 0.            # [deg] tow angle of the laminate, defined in the same manner as sweep
 
                     # Constraints
                     'exact_failure_constraint' : False, # if false, use KS function

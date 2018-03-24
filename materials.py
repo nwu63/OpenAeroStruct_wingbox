@@ -159,8 +159,7 @@ def wingbox_props(chord, sparthickness, skinthickness, data_x_upper, data_x_lowe
     G12 = 6.9E9
     nu12 = 0.3
     theta = 0
-    ang = np.array([45,-45,45,-45])
-    #ang = np.array([0,45,-45,90],dtype=np.float)
+    ang = np.array([0,45,-45,90],dtype=np.float)
     ang = ang + theta # theta is desvar
     fv = np.array([0.625,0.125,0.125,0.125],dtype=np.float)
     Qavg = np.zeros((3,3))

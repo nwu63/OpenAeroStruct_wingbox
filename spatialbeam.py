@@ -83,7 +83,7 @@ def _assemble_system(nodes, A, J, Iy, Iz, Kbt,
 
             for ind in range(4):
                 T_elem[3*ind:3*ind+3, 3*ind:3*ind+3] = T
-            Kbt[ielem] = 0
+
             L = norm(P1 - P0)
             EA_L = E * A[ielem] / L
             GJ_L = G * J[ielem] / L
