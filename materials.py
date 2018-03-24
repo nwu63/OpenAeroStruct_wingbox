@@ -3,6 +3,19 @@ import numpy as np
 
 from openmdao.api import Component
 
+def getQ(E1,E2,G12,nu12,ang):
+    ang = np.deg2rad(ang)
+    T = lambda t:np.array([[np.cos(t)**2,np.sin(t)**2,2*np.sin(t)*np.cos(t)],
+                           [np.sin(t)**2,np.cos(t)**2,-2*np.sin(t)*np.cos(t)],
+                           [-np.sin(t)*np.cos(t),np.sin(t)*np.cos(t),np.cos(t)**2 - np.sin(t)**2]],dtype=np.float)
+    S = np.array([[1/E1,-nu12/E1,0],
+                  [-nu12/E1,1/E2,0],
+                  [0,0,1/G12]],dtype=np.float)
+    Q = np.linalg.inv(S)
+    Qbar = np.linalg.inv(T(ang)).dot(Q)
+    Qbar = Qbar.dot(np.linalg.inv(T(ang)).T)
+    return Qbar
+
 def wingbox_props(chord, sparthickness, skinthickness, data_x_upper, data_x_lower, data_y_upper, data_y_lower, twist=0.):
     
     # Scale data points with chord 
@@ -10,6 +23,10 @@ def wingbox_props(chord, sparthickness, skinthickness, data_x_upper, data_x_lowe
     data_y_upper = chord * data_y_upper
     data_x_lower = chord * data_x_lower
     data_y_lower = chord * data_y_lower
+
+    # Compute average spacing in x and y, prior to rotation
+    avg_x_dist = (data_x_upper[-1] - data_x_upper[0] + data_x_lower[-1] - data_x_lower[0])/2 - sparthickness
+    avg_y_dist = (data_y_upper[0] - data_y_lower[0] + data_y_upper[-1] - data_y_lower[-1])/2 - skinthickness
     
     # Compute enclosed area for torsion constant
     # This currently does not change with twist
@@ -130,8 +147,38 @@ def wingbox_props(chord, sparthickness, skinthickness, data_x_upper, data_x_lowe
     
     hleft =  centroid_Ivert - data_x_upper[0]
     hright = data_x_upper[-1] - centroid_Ivert
-    
-    return I_horiz, I_vert, J, area, A_enc, htop, hbottom, hleft, hright, area_spar
+
+
+    # E1 = 117.9E9
+    # E2 = 9.7E9
+    # G12 = 4.8E9
+    # nu12 = 0.34
+    # theta = 30
+    E1 = 138E9
+    E2 = 9E9
+    G12 = 6.9E9
+    nu12 = 0.3
+    theta = 0
+    ang = np.array([45,-45,45,-45])
+    #ang = np.array([0,45,-45,90],dtype=np.float)
+    ang = ang + theta # theta is desvar
+    fv = np.array([0.625,0.125,0.125,0.125],dtype=np.float)
+    Qavg = np.zeros((3,3))
+    for ilayer in range(4):
+        Q = getQ(E1,E2,G12,nu12,ang[ilayer])
+        Qavg += Q*fv[ilayer]
+    Al = Qavg*skinthickness
+    Au = Al
+    skinthickness
+    avg_x_dist
+    avg_y_dist
+    Deff = (avg_y_dist/2)**2 * (Al + Au)
+    print(Deff)
+    print('D26 = ',Deff[1,2])
+    Kbt = 2 * avg_x_dist * Deff[1,2]
+    print('Kbt = ',Kbt)
+
+    return I_horiz, I_vert, J, area, A_enc, htop, hbottom, hleft, hright, area_spar, Kbt
 
 class MaterialsTube(Component):
     """
@@ -190,6 +237,7 @@ class MaterialsTube(Component):
         self.add_output('hbottom', val=np.ones((self.ny - 1),  dtype = complex))
         self.add_output('hleft', val=np.ones((self.ny - 1),  dtype = complex))
         self.add_output('hright', val=np.ones((self.ny - 1),  dtype = complex))
+        self.add_output('Kbt', val=np.ones((self.ny - 1),  dtype = complex))
 
         self.arange = np.arange((self.ny - 1))
         
@@ -201,6 +249,7 @@ class MaterialsTube(Component):
         for i in range(self.ny - 1):
             
             unknowns['Iz'][i], unknowns['Iy'][i], unknowns['J'][i], unknowns['A'][i], unknowns['A_enc'][i],\
-            unknowns['htop'][i], unknowns['hbottom'][i], unknowns['hleft'][i], unknowns['hright'][i], unknowns['A_spar'][i]  = \
-            wingbox_props(params['chords_fem'][i], params['sparthickness'][i], params['skinthickness'][i], self.data_x_upper, \
-            self.data_x_lower, self.data_y_upper, self.data_y_lower, -params['twist_fem'][i])
+            unknowns['htop'][i], unknowns['hbottom'][i], unknowns['hleft'][i], unknowns['hright'][i],\
+            unknowns['A_spar'][i], unknowns['Kbt'][i]  = \
+            wingbox_props(params['chords_fem'][i], params['sparthickness'][i], params['skinthickness'][i],\
+            self.data_x_upper, self.data_x_lower, self.data_y_upper, self.data_y_lower, -params['twist_fem'][i])

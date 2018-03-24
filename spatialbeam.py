@@ -69,7 +69,6 @@ def _assemble_system(nodes, A, J, Iy, Iz,
 
         # Loop over each element
         for ielem in range(n-1):
-
             # Obtain the element nodes
             P0 = nodes[ielem, :]
             P1 = nodes[ielem+1, :]
@@ -118,12 +117,6 @@ def _assemble_system(nodes, A, J, Iy, Iz,
             res = T_elem.T.dot(K_elem).dot(T_elem)
 
             in0, in1 = ielem, ielem+1
-            print('ielem = ',ielem)
-            print('K_elem\n',K_elem)
-            print('res\n',res)
-            #if (ielem == 10):
-            #    print(K_elem)
-            #    print("Kbt = ",Kbt)
             # Populate the full matrix with stiffness
             # contributions from each node
             K[6*in0:6*in0+6, 6*in0:6*in0+6] += res[:6, :6]
@@ -134,14 +127,10 @@ def _assemble_system(nodes, A, J, Iy, Iz,
         # Include a scaled identity matrix in the rows and columns
         # corresponding to the structural constraints.
         # Hardcoded 1 constraint for now.
-        print('cons = ',cons)
         for ind in range(1):
             for k in range(6):
-                print(K[-6+k, 6*cons+k],K[-6+k, 6*cons+k])
-                #K[-6+k, 6*cons+k] *= 1.e4
-                #K[6*cons+k, -6+k] *= 1.e4
-                K[-6+k, 6*cons+k] = 1.e12
-                K[6*cons+k, -6+k] = 1.e12
+                K[-6+k, 6*cons+k] = 1.e9
+                K[6*cons+k, -6+k] = 1.e9
 
     return K
 
@@ -290,8 +279,6 @@ class AssembleK(Component):
         self.S_k = np.zeros((12, 12), dtype=data_type)
         self.S_k[(3, 5, 9, 11), (5, 3, 11, 9)] = 1.
         self.S_k[(3, 5, 9, 11), (11, 9, 5, 3)] = -1.
-        #self.S_k[(3, 4, 9, 10), (4, 3, 10, 9)] = 1.
-        #self.S_k[(3, 4, 9, 10), (10, 9, 4, 3)] = -1.
 
         if not fortran_flag:
             self.deriv_options['type'] = 'cs'
@@ -451,16 +438,7 @@ class SpatialBeamFEM(Component):
         self.lup = lu_factor(params['K'])
 
         unknowns['disp_aug'] = lu_solve(self.lup, params['forces'])
-        print('K\n',params['K'])
-        print('lup\n',self.lup)
-        print('F\n',params['forces'])
-        print('Disp\n',unknowns['disp_aug'])
         resids['disp_aug'] = params['K'].dot(unknowns['disp_aug']) - params['forces']
-        disp_scipy = scipy_solve(params['K'],params['forces'])
-        print('Scipy Disp\n',disp_scipy)
-        detK = det(params['K'])
-        print('Det = ',detK)
-        print('Cond = ',cond(params['K']))
 
     def apply_nonlinear(self, params, unknowns, resids):
         """Evaluating residual for given state."""
