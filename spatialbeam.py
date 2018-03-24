@@ -39,9 +39,9 @@ def chords_fem(mesh):
     chords_fem = 0.5 * chords_fem[:-1] + 0.5 * chords_fem[1:] # Average chord between nodes
     return chords_fem
 
-def _assemble_system(nodes, A, J, Iy, Iz,
+def _assemble_system(nodes, A, J, Iy, Iz, Kbt,
                      K_a, K_t, K_y, K_z,
-                     cons, E, G, Kbt, x_gl, T,
+                     cons, E, G, x_gl, T,
                      K_elem, S_a, S_t, S_y, S_z, S_k, T_elem,
                      const2, const_y, const_z, const_k, n, size, K):
 
@@ -66,7 +66,7 @@ def _assemble_system(nodes, A, J, Iy, Iz,
     # Python
     else:
         K[:] = 0.
-
+    
         # Loop over each element
         for ielem in range(n-1):
             # Obtain the element nodes
@@ -83,14 +83,14 @@ def _assemble_system(nodes, A, J, Iy, Iz,
 
             for ind in range(4):
                 T_elem[3*ind:3*ind+3, 3*ind:3*ind+3] = T
-
+            Kbt[ielem] = 0
             L = norm(P1 - P0)
             EA_L = E * A[ielem] / L
             GJ_L = G * J[ielem] / L
             EIy_L3 = E * Iy[ielem] / L**3
             EIz_L3 = E * Iz[ielem] / L**3
-            K2_GJL3 = Kbt**2 / (G*J[ielem]*L**3)
-            K_L = Kbt/L
+            K2_GJL3 = Kbt[ielem]**2 / (G*J[ielem]*L**3)
+            K_L = Kbt[ielem]/L
 
             K_a[:, :] = EA_L * const2
             K_t[:, :] = GJ_L * const2
@@ -219,13 +219,12 @@ class AssembleK(Component):
         self.add_param('Iz', val=np.ones((self.ny - 1), dtype=data_type))
         self.add_param('J', val=np.ones((self.ny - 1), dtype=data_type))
         self.add_param('nodes', val=np.ones((self.ny, 3), dtype=data_type))
-
+        self.add_param('Kbt', val=np.ones((self.ny - 1), dtype=data_type))
         self.add_output('K', val=np.zeros((size, size), dtype=data_type))
 
         # Get material properties from the surface dictionary
         self.E = surface['E']
         self.G = surface['G']
-        self.Kbt = surface['Kbt']
 
         # Set up arrays to easily set up the K matrix
         self.const2 = np.array([
@@ -301,9 +300,9 @@ class AssembleK(Component):
         self.K = \
             _assemble_system(params['nodes'],
                              params['A'], params['J'], params['Iy'],
-                             params['Iz'], self.K_a, self.K_t,
+                             params['Iz'], params['Kbt'], self.K_a, self.K_t,
                              self.K_y, self.K_z, self.cons,
-                             self.E, self.G, self.Kbt, self.x_gl, self.T, self.K_elem,
+                             self.E, self.G, self.x_gl, self.T, self.K_elem,
                              self.S_a, self.S_t, self.S_y, self.S_z, self.S_k,
                              self.T_elem, self.const2, self.const_y,
                              self.const_z, self.const_k, self.ny, self.size,
@@ -326,6 +325,7 @@ class AssembleK(Component):
         J = params['J']
         Iy = params['Iy']
         Iz = params['Iz']
+        Kbt = params['Kbt']
 
         if mode == 'fwd':
             K, Kd = OAS_API.oas_api.assemblestructmtx_d(nodes, dparams['nodes'], A, dparams['A'],
@@ -702,6 +702,7 @@ class SpatialBeamVonMisesTube(Component):
         self.add_param('Iy', val=np.zeros((self.ny - 1), dtype=complex))
         self.add_param('Iz', val=np.zeros((self.ny - 1), dtype=complex))
         self.add_param('J', val=np.zeros((self.ny - 1), dtype=complex))
+        self.add_param('Kbt', val=np.zeros((self.ny - 1), dtype=complex))
         self.add_param('A_enc', val=np.zeros((self.ny - 1), dtype=complex))
         self.add_param('thickness', val=np.zeros((self.ny - 1)), dtype=complex)
         self.add_param('A_spar', val=np.ones((self.ny - 1),  dtype = complex))
@@ -738,6 +739,7 @@ class SpatialBeamVonMisesTube(Component):
         Iy = params['Iy']
         Iz = params['Iz']
         J = params['J']
+        Kbt = params['Kbt']
         # print("A is", A, "A_enc is",A_enc,"Iy",Iy,"Iz",Iz, "J", J)
         htop = params['htop']
         hbottom = params['hbottom']

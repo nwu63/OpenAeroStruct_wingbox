@@ -38,14 +38,15 @@ from .functionals import TotalPerformance, TotalAeroPerformance, FunctionalBregu
 # from .gs_newton import HybridGSNewton
 # from openmdao.solvers.gs_newton import HybridGSNewton
 
-try:
-    import OAS_API
-    fortran_flag = True
-    data_type = float
-except:
-    fortran_flag = False
-    data_type = complex
-
+# try:
+#     import OAS_API
+#     fortran_flag = True
+#     data_type = float
+# except:
+#     fortran_flag = False
+#     data_type = complex
+fortran_flag = False
+data_type = complex
 class Error(Exception):
     """
     Format the error message in a box to make it clear this
@@ -264,7 +265,6 @@ class OASProblem(object):
                     # Structural values are based on aluminum 7075
                     'E' : 70.e9,            # [Pa] Young's modulus of the spar
                     'G' : 30.e9,            # [Pa] shear modulus of the spar
-                    'Kbt' : 0.,             # [Pa] bend-twist couple constant of the spar
                     'yield' : 500.e6 / 2.5, # [Pa] yield stress divided by 2.5 for limiting case
                     'mrho' : 3.e3,          # [kg/m^3] material density
                     'fem_origin' : 0.35,    # normalized chordwise location of the spar
@@ -1060,6 +1060,7 @@ class OASProblem(object):
             root.connect(name[:-1] + '.Iy', name + 'perf.Iy')
             root.connect(name[:-1] + '.Iz', name + 'perf.Iz')
             root.connect(name[:-1] + '.J', name + 'perf.J')
+            root.connect(name[:-1] + '.Kbt', name + 'perf.Kbt')
             root.connect(name[:-1] + '.htop', name + 'perf.htop')
             root.connect(name[:-1] + '.hbottom', name + 'perf.hbottom')
             root.connect(name[:-1] + '.hleft', name + 'perf.hleft')

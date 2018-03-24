@@ -177,12 +177,13 @@ def setup(prob_dict={}, surfaces=[{}]):
 
     # Add materials properties for the wing surface to the surface dict in OAS_prob
     for idx, surface in enumerate(OAS_prob.surfaces):
-        A, Iy, Iz, J = materials_tube(surface['radius'], surface['thickness'], surface)
+        A, Iy, Iz, J, Kbt = materials_tube(surface['radius'], surface['thickness'], surface)
         OAS_prob.surfaces[idx].update({
             'A': A,
             'Iy': Iy,
             'Iz': Iz,
-            'J': J
+            'J': J,
+            'Kbt': Kbt
         })
 
     # Get total panels and save in prob_dict
@@ -273,13 +274,14 @@ def structures(loads, surface, prob_dict, comp_dict):
     Iy = surface.get('Iy')
     Iz = surface.get('Iz')
     J = surface.get('J')
+    Kbt = surface.get('Kbt')
     mesh = surface.get('mesh')
     v = prob_dict.get('v')
     alpha = prob_dict.get('alpha')
     size =  prob_dict.get('tot_panels')
 
     nodes = compute_nodes(mesh, comp_dict['ComputeNodes'])
-    K, forces = assemble_k(A, Iy, Iz, J, nodes, loads, comp_dict['AssembleK'])
+    K, forces = assemble_k(A, Iy, Iz, J, Kbt, nodes, loads, comp_dict['AssembleK'])
     disp_aug = spatial_beam_fem(K, forces, comp_dict['SpatialBeamFEM'])
     disp = spatial_beam_disp(disp_aug, comp_dict['SpatialBeamDisp'])
     def_mesh = transfer_displacements(mesh, disp, comp_dict['TransferDisplacements'])
@@ -295,6 +297,7 @@ def structures2(loads, surface, prob_dict):
     Iy = surface.get('Iy')
     Iz = surface.get('Iz')
     J = surface.get('J')
+    Kbt = surface.get('Kbt')
     mesh = surface.get('mesh')
     FEMsize =  surface.get('FEMsize')
     v = prob_dict.get('v')
@@ -302,7 +305,7 @@ def structures2(loads, surface, prob_dict):
      # Add the specified wing surface to the problem.
 
     nodes = compute_nodes(mesh, surface)
-    K, forces = assemble_k(A, Iy, Iz, J, nodes, loads, surface)
+    K, forces = assemble_k(A, Iy, Iz, J, Kbt, nodes, loads, surface)
     disp_aug = spatial_beam_fem(K, forces, FEMsize)
     disp = spatial_beam_disp(disp_aug, surface)
     def_mesh = transfer_displacements(mesh, disp, surface)
@@ -849,7 +852,7 @@ def compute_nodes(mesh, comp):
     return nodes
 
 
-def assemble_k(A, Iy, Iz, J, nodes, loads, comp):
+def assemble_k(A, Iy, Iz, J, Kbt, nodes, loads, comp):
     """
     Compute the displacements and rotations by solving the linear system
     using the structural stiffness matrix.
@@ -888,6 +891,7 @@ def assemble_k(A, Iy, Iz, J, nodes, loads, comp):
         'Iy': Iy,
         'Iz': Iz,
         'J': J,
+        'Kbt': Kbt,
         'nodes': nodes,
         'loads': loads
     }
@@ -947,7 +951,8 @@ def materials_tube(r, thickness, comp):
         'A': np.zeros((comp.ny - 1)),
         'Iy': np.zeros((comp.ny - 1)),
         'Iz': np.zeros((comp.ny - 1)),
-        'J': np.zeros((comp.ny - 1))
+        'J': np.zeros((comp.ny - 1)),
+        'Kbt': np.zeros((comp.ny - 1))
     }
     resids = None
     comp.solve_nonlinear(params, unknowns, resids)
@@ -955,7 +960,8 @@ def materials_tube(r, thickness, comp):
     Iy=unknowns.get('Iy')
     Iz=unknowns.get('Iz')
     J=unknowns.get('J')
-    return A, Iy, Iz, J
+    Kbt=unknowns.get('Kbt')
+    return A, Iy, Iz, J, Kbt
 
     """
 ================================================================================
