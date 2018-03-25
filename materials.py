@@ -159,7 +159,8 @@ def wingbox_props(chord, sparthickness, skinthickness, data_x_upper, data_x_lowe
     G12 = 6.9E9
     nu12 = 0.3
     theta = 0
-    ang = np.array([0,45,-45,90],dtype=np.float)
+    ang = np.array([0,0,0,0],dtype=np.float)
+    #ang = np.array([0,45,-45,90],dtype=np.float)
     ang = ang + theta # theta is desvar
     fv = np.array([0.625,0.125,0.125,0.125],dtype=np.float)
     Qavg = np.zeros((3,3))
@@ -168,14 +169,17 @@ def wingbox_props(chord, sparthickness, skinthickness, data_x_upper, data_x_lowe
         Qavg += Q*fv[ilayer]
     Al = Qavg*skinthickness
     Au = Al
-    skinthickness
-    avg_x_dist
-    avg_y_dist
-    Deff = (avg_y_dist/2)**2 * (Al + Au)
-    print(Deff)
-    print('D26 = ',Deff[1,2])
+    Aeff = Al + Au
+    Beff = (avg_y_dist/2) * Aeff
+    Deff = (avg_y_dist/2)**2 * Aeff
+    # mat = np.block([[Aeff,Beff],[Beff,Deff]])
+    # np.set_printoptions(precision=3)
+    # print(np.real(mat))
+    # matinv = np.linalg.inv(mat)
+    # Ainv = matinv[0:3,0:3]
+    # Eeff = 1/Ainv[0,0]/skinthickness*2
+    # print(Eeff)
     Kbt = 2 * avg_x_dist * Deff[1,2]
-    print('Kbt = ',Kbt)
 
     return I_horiz, I_vert, J, area, A_enc, htop, hbottom, hleft, hright, area_spar, Kbt
 
