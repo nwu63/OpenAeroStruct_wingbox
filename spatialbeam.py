@@ -13,6 +13,7 @@ from scipy.linalg import lu_factor, lu_solve
 from scipy.linalg import solve as scipy_solve
 from scipy.linalg import det
 from numpy.linalg import cond
+from materials import ComputeModuli
 
 try:
     import OAS_API
@@ -76,14 +77,6 @@ def _assemble_system(nodes, A, J, Iy, Iz, Kbt,
             x_loc = unit(P1 - P0)
             y_loc = unit(np.cross(x_loc, x_gl))
             z_loc = unit(np.cross(x_loc, y_loc))
-            spar_ang = np.rad2deg(np.arccos(x_loc.dot(x_gl))) - 90
-            print('angle = ',spar_ang) # this is correct, basically spar sweep angle (assuming projection)
-            # local fibre angle is then theta - spar_ang where theta is the global fibre angle
-            # what about removing the z-component of x_loc (and normalizing it), then dotting with x_gl?
-            # x_loc_spar = x_loc.copy()
-            # x_loc_spar[2] = 0
-            # x_loc_spar = unit(x_loc_spar)
-            # spar_ang = np.rad2deg(np.arccos(x_loc_spar.dot(x_gl))) - 90
 
             T[0, :] = x_loc
             T[1, :] = y_loc
@@ -93,11 +86,11 @@ def _assemble_system(nodes, A, J, Iy, Iz, Kbt,
                 T_elem[3*ind:3*ind+3, 3*ind:3*ind+3] = T
 
             L = norm(P1 - P0)
-            EA_L = E * A[ielem] / L
-            GJ_L = G * J[ielem] / L
-            EIy_L3 = E * Iy[ielem] / L**3
-            EIz_L3 = E * Iz[ielem] / L**3
-            K2_GJL3 = Kbt[ielem]**2 / (G*J[ielem]*L**3)
+            EA_L = E[ielem] * A[ielem] / L
+            GJ_L = G[ielem] * J[ielem] / L
+            EIy_L3 = E[ielem] * Iy[ielem] / L**3
+            EIz_L3 = E[ielem] * Iz[ielem] / L**3
+            K2_GJL3 = Kbt[ielem]**2 / (G[ielem]*J[ielem]*L**3)
             K_L = Kbt[ielem]/L
 
             K_a[:, :] = EA_L * const2
@@ -228,11 +221,9 @@ class AssembleK(Component):
         self.add_param('J', val=np.ones((self.ny - 1), dtype=data_type))
         self.add_param('nodes', val=np.ones((self.ny, 3), dtype=data_type))
         self.add_param('Kbt', val=np.ones((self.ny - 1), dtype=data_type))
+        self.add_param('E', val=np.ones((self.ny - 1), dtype=data_type))
+        self.add_param('G', val=np.ones((self.ny - 1), dtype=data_type))
         self.add_output('K', val=np.zeros((size, size), dtype=data_type))
-
-        # Get material properties from the surface dictionary
-        self.E = surface['E']
-        self.G = surface['G']
 
         # Set up arrays to easily set up the K matrix
         self.const2 = np.array([
@@ -309,7 +300,7 @@ class AssembleK(Component):
                              params['A'], params['J'], params['Iy'],
                              params['Iz'], params['Kbt'], self.K_a, self.K_t,
                              self.K_y, self.K_z, self.cons,
-                             self.E, self.G, self.x_gl, self.T, self.K_elem,
+                             params['E'], params['G'], self.x_gl, self.T, self.K_elem,
                              self.S_a, self.S_t, self.S_y, self.S_z, self.S_k,
                              self.T_elem, self.const2, self.const_y,
                              self.const_z, self.const_k, self.ny, self.size,
@@ -332,14 +323,13 @@ class AssembleK(Component):
         J = params['J']
         Iy = params['Iy']
         Iz = params['Iz']
-        Kbt = params['Kbt']
 
         if mode == 'fwd':
             K, Kd = OAS_API.oas_api.assemblestructmtx_d(nodes, dparams['nodes'], A, dparams['A'],
                                          J, dparams['J'], Iy, dparams['Iy'],
                                          Iz, dparams['Iz'],
                                          self.K_a, self.K_t, self.K_y, self.K_z,
-                                         self.cons, self.E, self.G, self.x_gl, self.T,
+                                         self.cons, params['E'], params['G'], self.x_gl, self.T,
                                          self.K_elem, self.S_a, self.S_t, self.S_y, self.S_z, self.S_k, self.T_elem,
                                          self.const2, self.const_y, self.const_z, self.const_k)
 
@@ -348,7 +338,7 @@ class AssembleK(Component):
         if mode == 'rev':
             nodesb, Ab, Jb, Iyb, Izb = OAS_API.oas_api.assemblestructmtx_b(nodes, A, J, Iy, Iz,
                                 self.K_a, self.K_t, self.K_y, self.K_z,
-                                self.cons, self.E, self.G, self.x_gl, self.T,
+                                self.cons, params['E'], params['G'], self.x_gl, self.T,
                                 self.K_elem, self.S_a, self.S_t, self.S_y, self.S_z, self.S_k, self.T_elem,
                                 self.const2, self.const_y, self.const_z, self.const_k, self.K, dresids['K'])
 
@@ -709,10 +699,11 @@ class SpatialBeamVonMisesTube(Component):
         self.add_param('Iy', val=np.zeros((self.ny - 1), dtype=complex))
         self.add_param('Iz', val=np.zeros((self.ny - 1), dtype=complex))
         self.add_param('J', val=np.zeros((self.ny - 1), dtype=complex))
-        self.add_param('Kbt', val=np.zeros((self.ny - 1), dtype=complex))
         self.add_param('A_enc', val=np.zeros((self.ny - 1), dtype=complex))
         self.add_param('thickness', val=np.zeros((self.ny - 1)), dtype=complex)
         self.add_param('A_spar', val=np.ones((self.ny - 1),  dtype = complex))
+        self.add_param('E', val=np.ones((self.ny - 1),  dtype = complex))
+        self.add_param('G', val=np.ones((self.ny - 1),  dtype = complex))
         
         self.add_param('sparthickness', val=np.zeros((self.ny - 1)), dtype=complex)
         self.add_param('skinthickness', val=np.zeros((self.ny - 1)), dtype=complex)
@@ -726,8 +717,6 @@ class SpatialBeamVonMisesTube(Component):
         self.deriv_options['type'] = 'cs'
         # self.deriv_options['form'] = 'central'
 
-        self.E = surface['E']
-        self.G = surface['G']
 
         self.T = np.zeros((3, 3), dtype=complex)
         self.x_gl = np.array([1, 0, 0], dtype=complex)
@@ -746,7 +735,6 @@ class SpatialBeamVonMisesTube(Component):
         Iy = params['Iy']
         Iz = params['Iz']
         J = params['J']
-        Kbt = params['Kbt']
         # print("A is", A, "A_enc is",A_enc,"Iy",Iy,"Iz",Iz, "J", J)
         htop = params['htop']
         hbottom = params['hbottom']
@@ -760,8 +748,8 @@ class SpatialBeamVonMisesTube(Component):
         # print("htop is", htop, "hbottom", hbottom)
         
         T = self.T
-        E = self.E
-        G = self.G
+        E = params['E']
+        G = params['G']
         x_gl = self.x_gl
 
         num_elems = self.ny - 1
@@ -785,14 +773,14 @@ class SpatialBeamVonMisesTube(Component):
             r1x, r1y, r1z = T.dot(disp[ielem+1, 3:])
             
             
-            axial_stress = E * (u1x - u0x) / L      # this is stress = modulus * strain; positive is tensile
-            torsion_stress = G * J[ielem] / L * (r1x - r0x) / 2 / sparthickness[ielem] / A_enc[ielem]   # this is Torque / (2 * thickness_min * Area_enclosed)
-            top_bending_stress = E / (L**2) * (6 * u0y + 2 * r0z * L - 6 * u1y + 4 * r1z * L ) * htop[ielem] # this is moment * htop / I  
-            bottom_bending_stress = - E / (L**2) * (6 * u0y + 2 * r0z * L - 6 * u1y + 4 * r1z * L ) * hbottom[ielem] # this is moment * htop / I  
-            left_bending_stress = - E / (L**2) * (-6 * u0z + 2 * r0y * L + 6 * u1z + 4 * r1y * L ) * hleft[ielem] # this is moment * htop / I  
-            right_bending_stress = E / (L**2) * (-6 * u0z + 2 * r0y * L + 6 * u1z + 4 * r1y * L ) * hright[ielem] # this is moment * htop / I  
+            axial_stress = E[ielem] * (u1x - u0x) / L      # this is stress = modulus * strain; positive is tensile
+            torsion_stress = G[ielem] * J[ielem] / L * (r1x - r0x) / 2 / sparthickness[ielem] / A_enc[ielem]   # this is Torque / (2 * thickness_min * Area_enclosed)
+            top_bending_stress = E[ielem] / (L**2) * (6 * u0y + 2 * r0z * L - 6 * u1y + 4 * r1z * L ) * htop[ielem] # this is moment * htop / I  
+            bottom_bending_stress = - E[ielem] / (L**2) * (6 * u0y + 2 * r0z * L - 6 * u1y + 4 * r1z * L ) * hbottom[ielem] # this is moment * htop / I  
+            left_bending_stress = - E[ielem] / (L**2) * (-6 * u0z + 2 * r0y * L + 6 * u1z + 4 * r1y * L ) * hleft[ielem] # this is moment * htop / I  
+            right_bending_stress = E[ielem] / (L**2) * (-6 * u0z + 2 * r0y * L + 6 * u1z + 4 * r1y * L ) * hright[ielem] # this is moment * htop / I  
             
-            vertical_shear = 1.5 / A_spar[ielem] * E * Iz[ielem] / (L**3) *(-12 * u0y - 6 * r0z * L + 12 * u1y - 6 * r1z * L ) # conservative estimate for shear due to bending
+            vertical_shear = 1.5 / A_spar[ielem] * E[ielem] * Iz[ielem] / (L**3) *(-12 * u0y - 6 * r0z * L + 12 * u1y - 6 * r1z * L ) # conservative estimate for shear due to bending
             
             # print("==========",ielem,"================")
             # print("vertical_shear", vertical_shear)
@@ -1024,6 +1012,9 @@ class SpatialBeamSetup(Group):
 
         self.add('nodes',
                  ComputeNodes(surface),
+                 promotes=['*'])
+        self.add('bend_twist',
+                 ComputeModuli(surface),
                  promotes=['*'])
         self.add('assembly',
                  AssembleK(surface),

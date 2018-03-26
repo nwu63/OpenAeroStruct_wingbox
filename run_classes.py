@@ -33,7 +33,7 @@ from .geometry import GeometryMesh, Bspline, gen_crm_mesh, gen_rect_mesh, Monoto
 from .transfer import TransferDisplacements, TransferLoads
 from .vlm import VLMStates, VLMFunctionals, VLMGeometry
 from .spatialbeam import SpatialBeamStates, SpatialBeamFunctionals, SpatialBeamSetup, chords_fem
-from .materials import MaterialsTube
+from .materials import MaterialsTube, ComputeModuli
 from .functionals import TotalPerformance, TotalAeroPerformance, FunctionalBreguetRange, FunctionalEquilibrium
 # from .gs_newton import HybridGSNewton
 # from openmdao.solvers.gs_newton import HybridGSNewton
@@ -690,7 +690,7 @@ class OASProblem(object):
             # analysis and optimization.
             # Here we check and only add the variables that are desvars or a
             # special var, radius, which is necessary to compute weight.
-            indep_vars = [('loads', surface['loads'])]
+            indep_vars = [('loads', surface['loads']),('theta',0.)]
             for var in surface['geo_vars']:
                 if var in desvar_names or 'thickness' in var or var in surface['initial_geo']:
                     indep_vars.append((var, surface[var]))
@@ -1062,6 +1062,8 @@ class OASProblem(object):
             root.connect(name[:-1] + '.Iz', name + 'perf.Iz')
             root.connect(name[:-1] + '.J', name + 'perf.J')
             root.connect(name[:-1] + '.Kbt', name + 'perf.Kbt')
+            root.connect(name[:-1] + '.E', name + 'perf.E')
+            root.connect(name[:-1] + '.G', name + 'perf.G')
             root.connect(name[:-1] + '.htop', name + 'perf.htop')
             root.connect(name[:-1] + '.hbottom', name + 'perf.hbottom')
             root.connect(name[:-1] + '.hleft', name + 'perf.hleft')

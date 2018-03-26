@@ -66,7 +66,7 @@ from __future__ import print_function, division
 import numpy as np
 import math
 
-from materials import MaterialsTube
+from materials import MaterialsTube, ComputeModuli
 from spatialbeam import ComputeNodes, AssembleK, SpatialBeamFEM, SpatialBeamDisp#, SpatialBeamEnergy, SpatialBeamWeight, SpatialBeamVonMisesTube, SpatialBeamFailureKS
 from transfer import TransferDisplacements, TransferLoads
 from vlm import VLMGeometry, AssembleAIC, AeroCirculations, VLMForces#, VLMLiftDrag, VLMCoeffs, TotalLift, TotalDrag
@@ -177,13 +177,12 @@ def setup(prob_dict={}, surfaces=[{}]):
 
     # Add materials properties for the wing surface to the surface dict in OAS_prob
     for idx, surface in enumerate(OAS_prob.surfaces):
-        A, Iy, Iz, J, Kbt = materials_tube(surface['radius'], surface['thickness'], surface)
+        A, Iy, Iz, J = materials_tube(surface['radius'], surface['thickness'], surface)
         OAS_prob.surfaces[idx].update({
             'A': A,
             'Iy': Iy,
             'Iz': Iz,
             'J': J,
-            'Kbt': Kbt
         })
 
     # Get total panels and save in prob_dict
@@ -275,13 +274,15 @@ def structures(loads, surface, prob_dict, comp_dict):
     Iz = surface.get('Iz')
     J = surface.get('J')
     Kbt = surface.get('Kbt')
+    E = surface.get('E')
+    G = surface.get('G')
     mesh = surface.get('mesh')
     v = prob_dict.get('v')
     alpha = prob_dict.get('alpha')
     size =  prob_dict.get('tot_panels')
 
     nodes = compute_nodes(mesh, comp_dict['ComputeNodes'])
-    K, forces = assemble_k(A, Iy, Iz, J, Kbt, nodes, loads, comp_dict['AssembleK'])
+    K, forces = assemble_k(A, Iy, Iz, J, Kbt, nodes, loads, E, G, comp_dict['AssembleK'])
     disp_aug = spatial_beam_fem(K, forces, comp_dict['SpatialBeamFEM'])
     disp = spatial_beam_disp(disp_aug, comp_dict['SpatialBeamDisp'])
     def_mesh = transfer_displacements(mesh, disp, comp_dict['TransferDisplacements'])
@@ -298,6 +299,8 @@ def structures2(loads, surface, prob_dict):
     Iz = surface.get('Iz')
     J = surface.get('J')
     Kbt = surface.get('Kbt')
+    E = surface.get('E')
+    G = surface.get('G')
     mesh = surface.get('mesh')
     FEMsize =  surface.get('FEMsize')
     v = prob_dict.get('v')
@@ -305,7 +308,7 @@ def structures2(loads, surface, prob_dict):
      # Add the specified wing surface to the problem.
 
     nodes = compute_nodes(mesh, surface)
-    K, forces = assemble_k(A, Iy, Iz, J, Kbt, nodes, loads, surface)
+    K, forces = assemble_k(A, Iy, Iz, J, Kbt, nodes, loads, E, G, surface)
     disp_aug = spatial_beam_fem(K, forces, FEMsize)
     disp = spatial_beam_disp(disp_aug, surface)
     def_mesh = transfer_displacements(mesh, disp, surface)
@@ -852,7 +855,7 @@ def compute_nodes(mesh, comp):
     return nodes
 
 
-def assemble_k(A, Iy, Iz, J, Kbt, nodes, loads, comp):
+def assemble_k(A, Iy, Iz, J, Kbt, E, G, nodes, loads, comp):
     """
     Compute the displacements and rotations by solving the linear system
     using the structural stiffness matrix.
@@ -893,7 +896,9 @@ def assemble_k(A, Iy, Iz, J, Kbt, nodes, loads, comp):
         'J': J,
         'Kbt': Kbt,
         'nodes': nodes,
-        'loads': loads
+        'loads': loads,
+        'E': E,
+        'G': G
     }
     unknowns = {
         'K': np.zeros((comp.size, comp.size), dtype=data_type),
@@ -952,7 +957,6 @@ def materials_tube(r, thickness, comp):
         'Iy': np.zeros((comp.ny - 1)),
         'Iz': np.zeros((comp.ny - 1)),
         'J': np.zeros((comp.ny - 1)),
-        'Kbt': np.zeros((comp.ny - 1))
     }
     resids = None
     comp.solve_nonlinear(params, unknowns, resids)
@@ -960,8 +964,50 @@ def materials_tube(r, thickness, comp):
     Iy=unknowns.get('Iy')
     Iz=unknowns.get('Iz')
     J=unknowns.get('J')
+    return A, Iy, Iz, J
+
+
+def compute_moduli(r, thickness, comp):
+    """ Compute geometric properties for a tube element.
+
+    Parameters
+    ----------
+    r : array_like
+        Radii for each FEM element.
+    thickness : array_like
+        Tube thickness for each FEM element.
+    comp : Either OpenAeroStruct component object (better), or surface dict.
+
+    Returns
+    -------
+    A : array_like
+        Areas for each FEM element.
+    Iy : array_like
+        Area moment of inertia around the y-axis for each FEM element.
+    Iz : array_like
+        Area moment of inertia around the z-axis for each FEM element.
+    J : array_like
+        Polar moment of inertia for each FEM element.
+
+    """
+    if not isinstance(comp, Component):
+        surface = comp
+        comp=ComputeModuli(surface)
+    params={
+        'radius': r,
+        'thickness': thickness
+    }
+    unknowns={
+        'E': np.zeros((comp.ny - 1)),
+        'G': np.zeros((comp.ny - 1)),
+        'Kbt': np.zeros((comp.ny - 1)),
+    }
+    resids = None
+    comp.solve_nonlinear(params, unknowns, resids)
+    E=unknowns.get('E')
+    G=unknowns.get('G')
     Kbt=unknowns.get('Kbt')
-    return A, Iy, Iz, J, Kbt
+    return E, G, Kbt
 
     """
 ================================================================================
