@@ -76,6 +76,14 @@ def _assemble_system(nodes, A, J, Iy, Iz, Kbt,
             x_loc = unit(P1 - P0)
             y_loc = unit(np.cross(x_loc, x_gl))
             z_loc = unit(np.cross(x_loc, y_loc))
+            spar_ang = np.rad2deg(np.arccos(x_loc.dot(x_gl))) - 90
+            print('angle = ',spar_ang) # this is correct, basically spar sweep angle (assuming projection)
+            # local fibre angle is then theta - spar_ang where theta is the global fibre angle
+            # what about removing the z-component of x_loc (and normalizing it), then dotting with x_gl?
+            # x_loc_spar = x_loc.copy()
+            # x_loc_spar[2] = 0
+            # x_loc_spar = unit(x_loc_spar)
+            # spar_ang = np.rad2deg(np.arccos(x_loc_spar.dot(x_gl))) - 90
 
             T[0, :] = x_loc
             T[1, :] = y_loc
@@ -295,7 +303,6 @@ class AssembleK(Component):
         else:
             idx = (self.ny - 1) // 2
         self.cons = idx
-        nodes = params['nodes']
 
         self.K = \
             _assemble_system(params['nodes'],

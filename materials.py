@@ -149,37 +149,55 @@ def wingbox_props(chord, sparthickness, skinthickness, data_x_upper, data_x_lowe
     hright = data_x_upper[-1] - centroid_Ivert
 
 
-    # E1 = 117.9E9
-    # E2 = 9.7E9
-    # G12 = 4.8E9
-    # nu12 = 0.34
-    # theta = 30
-    E1 = 138E9
-    E2 = 9E9
-    G12 = 6.9E9
-    nu12 = 0.3
-    theta = 0
-    ang = np.array([0,0,0,0],dtype=np.float)
-    #ang = np.array([0,45,-45,90],dtype=np.float)
-    ang = ang + theta # theta is desvar
-    fv = np.array([0.625,0.125,0.125,0.125],dtype=np.float)
-    Qavg = np.zeros((3,3))
+    E1 = 117.9E9
+    E2 = 9.7E9
+    G12 = 4.8E9
+    nu12 = 0.34
+    theta = 30
+    ang = np.array([0,45,-45,90],dtype=np.float)
+    ang_skin = ang + theta # theta is desvar
+    fv_skin = np.array([0.625,0.125,0.125,0.125],dtype=np.float)
+    fv_spar = np.array([0.125,0.375,0.375,0.125],dtype=np.float)
+    Qavg_skin = np.zeros((3,3))
+    Qavg_spar = np.zeros((3,3))
     for ilayer in range(4):
-        Q = getQ(E1,E2,G12,nu12,ang[ilayer])
-        Qavg += Q*fv[ilayer]
-    Al = Qavg*skinthickness
+        Q_spar = getQ(E1,E2,G12,nu12,ang[ilayer])
+        Q_skin = getQ(E1,E2,G12,nu12,ang_skin[ilayer])
+        Qavg_skin += Q_skin*fv_skin[ilayer]
+        Qavg_spar += Q_spar*fv_spar[ilayer]
+    Al = Qavg_skin*skinthickness
     Au = Al
-    Aeff = Al + Au
-    Beff = (avg_y_dist/2) * Aeff
-    Deff = (avg_y_dist/2)**2 * Aeff
-    # mat = np.block([[Aeff,Beff],[Beff,Deff]])
-    # np.set_printoptions(precision=3)
-    # print(np.real(mat))
-    # matinv = np.linalg.inv(mat)
-    # Ainv = matinv[0:3,0:3]
-    # Eeff = 1/Ainv[0,0]/skinthickness*2
-    # print(Eeff)
-    Kbt = 2 * avg_x_dist * Deff[1,2]
+    Aeff_skin = Al + Au
+    Beff_skin = (avg_y_dist/2) * Au - (avg_y_dist/2) * Al
+    Deff_skin = (avg_y_dist/2)**2 * Aeff_skin
+
+    Af = Qavg_spar * sparthickness
+    Ar = Af
+    Aeff_spar = Af + Ar
+    Beff_spar = (avg_x_dist/2) * Af - (avg_x_dist/2) * Ar
+    Deff_spar = (avg_x_dist/2)**2 * Aeff_spar
+
+
+    mat_skin = np.block([[Aeff_skin,Beff_skin],[Beff_skin,Deff_skin]])
+    matinv_skin = np.linalg.inv(mat_skin)
+    Ainv_skin = matinv_skin[0:3,0:3]
+    E_skin = 1/Ainv_skin[0,0]/(skinthickness*2)
+    G_skin = 1/Ainv_skin[2,2]/(skinthickness*2)
+
+    mat_spar = np.block([[Aeff_spar,Beff_spar],[Beff_spar,Deff_spar]])
+    matinv_spar = np.linalg.inv(mat_spar)
+    Ainv_spar = matinv_spar[0:3,0:3]
+    E_spar = 1/Ainv_spar[0,0]/(sparthickness*2)
+    G_spar = 1/Ainv_spar[2,2]/(sparthickness*2)
+    
+    V_skin = avg_x_dist*skinthickness/(avg_x_dist*skinthickness + avg_y_dist*sparthickness)
+    V_spar = avg_y_dist*sparthickness/(avg_x_dist*skinthickness + avg_y_dist*sparthickness)
+    E = E_spar*V_spar + E_skin*V_skin
+    G = G_spar*V_spar + G_skin*V_skin
+
+    
+    #Kbt = 2 * avg_x_dist * Deff[1,2]
+    Kbt = 2 * avg_x_dist * Deff_skin[0,2]
 
     return I_horiz, I_vert, J, area, A_enc, htop, hbottom, hleft, hright, area_spar, Kbt
 
@@ -224,23 +242,24 @@ class MaterialsTube(Component):
 
         # self.add_param('radius', val=np.ones((self.ny - 1)))
         self.add_param('chords_fem', val=np.ones((self.ny - 1), dtype = complex))
-        self.add_param('twist_fem', val=np.ones((self.ny - 1),  dtype = complex))
-        self.add_param('thickness', val=np.ones((self.ny - 1), dtype = complex))
+        self.add_param('twist_fem',  val=np.ones((self.ny - 1),  dtype = complex))
+        self.add_param('thickness',  val=np.ones((self.ny - 1), dtype = complex))
         
         self.add_param('sparthickness', val=np.ones((self.ny - 1), dtype = complex))
         self.add_param('skinthickness', val=np.ones((self.ny - 1),  dtype = complex))
         
-        self.add_output('A', val=np.ones((self.ny - 1),  dtype = complex))
-        self.add_output('A_enc', val=np.ones((self.ny - 1),  dtype = complex))
-        self.add_output('A_spar', val=np.ones((self.ny - 1),  dtype = complex))
-        self.add_output('Iy', val=np.ones((self.ny - 1),  dtype = complex))
-        self.add_output('Iz', val=np.ones((self.ny - 1),  dtype = complex))
-        self.add_output('J', val=np.ones((self.ny - 1),  dtype = complex))
-        self.add_output('htop', val=np.ones((self.ny - 1),  dtype = complex))
+        self.add_output('A',       val=np.ones((self.ny - 1),  dtype = complex))
+        self.add_output('A_enc',   val=np.ones((self.ny - 1),  dtype = complex))
+        self.add_output('A_spar',  val=np.ones((self.ny - 1),  dtype = complex))
+        self.add_output('Iy',      val=np.ones((self.ny - 1),  dtype = complex))
+        self.add_output('Iz',      val=np.ones((self.ny - 1),  dtype = complex))
+        self.add_output('J',       val=np.ones((self.ny - 1),  dtype = complex))
+        self.add_output('htop',    val=np.ones((self.ny - 1),  dtype = complex))
         self.add_output('hbottom', val=np.ones((self.ny - 1),  dtype = complex))
-        self.add_output('hleft', val=np.ones((self.ny - 1),  dtype = complex))
-        self.add_output('hright', val=np.ones((self.ny - 1),  dtype = complex))
-        self.add_output('Kbt', val=np.ones((self.ny - 1),  dtype = complex))
+        self.add_output('hleft',   val=np.ones((self.ny - 1),  dtype = complex))
+        self.add_output('hright',  val=np.ones((self.ny - 1),  dtype = complex))
+        self.add_output('Kbt',     val=np.ones((self.ny - 1),  dtype = complex))
+        # self.add_output('spar_ang', val=np.ones((self.ny - 1),  dtype = complex))
 
         self.arange = np.arange((self.ny - 1))
         
