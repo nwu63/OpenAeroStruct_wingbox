@@ -15,13 +15,16 @@ from scipy.linalg import det
 from numpy.linalg import cond
 from materials import ComputeModuli
 
-try:
-    import OAS_API
-    fortran_flag = True
-    data_type = float
-except:
-    fortran_flag = False
-    data_type = complex
+# try:
+#     import OAS_API
+#     fortran_flag = True
+#     data_type = float
+# except:
+#     fortran_flag = False
+#     data_type = complex
+
+fortran_flag = False
+data_type = complex
 
 def norm(vec):
     return np.sqrt(np.sum(vec**2))
@@ -283,8 +286,6 @@ class AssembleK(Component):
 
         self.surface = surface
 
-        self.surface = surface
-
     def solve_nonlinear(self, params, unknowns, resids):
 
         # Find constrained nodes based on closeness to specified cg point
@@ -308,45 +309,45 @@ class AssembleK(Component):
 
         unknowns['K'] = self.K
 
-    def apply_linear(self, params, unknowns, dparams, dunknowns, dresids, mode):
+    # def apply_linear(self, params, unknowns, dparams, dunknowns, dresids, mode):
 
-        # Find constrained nodes based on closeness to specified cg point
-        symmetry = self.surface['symmetry']
-        if symmetry:
-            idx = self.ny - 1
-        else:
-            idx = (self.ny - 1) // 2
-        self.cons = idx
-        nodes = params['nodes']
+    #     # Find constrained nodes based on closeness to specified cg point
+    #     symmetry = self.surface['symmetry']
+    #     if symmetry:
+    #         idx = self.ny - 1
+    #     else:
+    #         idx = (self.ny - 1) // 2
+    #     self.cons = idx
+    #     nodes = params['nodes']
 
-        A = params['A']
-        J = params['J']
-        Iy = params['Iy']
-        Iz = params['Iz']
+    #     A = params['A']
+    #     J = params['J']
+    #     Iy = params['Iy']
+    #     Iz = params['Iz']
 
-        if mode == 'fwd':
-            K, Kd = OAS_API.oas_api.assemblestructmtx_d(nodes, dparams['nodes'], A, dparams['A'],
-                                         J, dparams['J'], Iy, dparams['Iy'],
-                                         Iz, dparams['Iz'],
-                                         self.K_a, self.K_t, self.K_y, self.K_z,
-                                         self.cons, params['E'], params['G'], self.x_gl, self.T,
-                                         self.K_elem, self.S_a, self.S_t, self.S_y, self.S_z, self.S_k, self.T_elem,
-                                         self.const2, self.const_y, self.const_z, self.const_k)
+    #     if mode == 'fwd':
+    #         K, Kd = OAS_API.oas_api.assemblestructmtx_d(nodes, dparams['nodes'], A, dparams['A'],
+    #                                      J, dparams['J'], Iy, dparams['Iy'],
+    #                                      Iz, dparams['Iz'],
+    #                                      self.K_a, self.K_t, self.K_y, self.K_z,
+    #                                      self.cons, params['E'], params['G'], self.x_gl, self.T,
+    #                                      self.K_elem, self.S_a, self.S_t, self.S_y, self.S_z, self.S_k, self.T_elem,
+    #                                      self.const2, self.const_y, self.const_z, self.const_k)
 
-            dresids['K'] += Kd
+    #         dresids['K'] += Kd
 
-        if mode == 'rev':
-            nodesb, Ab, Jb, Iyb, Izb = OAS_API.oas_api.assemblestructmtx_b(nodes, A, J, Iy, Iz,
-                                self.K_a, self.K_t, self.K_y, self.K_z,
-                                self.cons, params['E'], params['G'], self.x_gl, self.T,
-                                self.K_elem, self.S_a, self.S_t, self.S_y, self.S_z, self.S_k, self.T_elem,
-                                self.const2, self.const_y, self.const_z, self.const_k, self.K, dresids['K'])
+    #     if mode == 'rev':
+    #         nodesb, Ab, Jb, Iyb, Izb = OAS_API.oas_api.assemblestructmtx_b(nodes, A, J, Iy, Iz,
+    #                             self.K_a, self.K_t, self.K_y, self.K_z,
+    #                             self.cons, params['E'], params['G'], self.x_gl, self.T,
+    #                             self.K_elem, self.S_a, self.S_t, self.S_y, self.S_z, self.S_k, self.T_elem,
+    #                             self.const2, self.const_y, self.const_z, self.const_k, self.K, dresids['K'])
 
-            dparams['nodes'] += nodesb
-            dparams['A'] += Ab
-            dparams['J'] += Jb
-            dparams['Iy'] += Iyb
-            dparams['Iz'] += Izb
+    #         dparams['nodes'] += nodesb
+    #         dparams['A'] += Ab
+    #         dparams['J'] += Jb
+    #         dparams['Iy'] += Iyb
+    #         dparams['Iz'] += Izb
 
 class CreateRHS(Component):
     """
@@ -722,7 +723,8 @@ class SpatialBeamVonMisesTube(Component):
         self.x_gl = np.array([1, 0, 0], dtype=complex)
         self.t = 0
         
-        self.tssf = top_skin_strength_factor = surface['strength_factor_for_upper_skin']
+        #self.tssf = top_skin_strength_factor = surface['strength_factor_for_upper_skin']
+        self.tssf = surface['strength_factor_for_upper_skin']
 
     def solve_nonlinear(self, params, unknowns, resids):
         # radius = params['radius']
@@ -1013,7 +1015,7 @@ class SpatialBeamSetup(Group):
         self.add('nodes',
                  ComputeNodes(surface),
                  promotes=['*'])
-        self.add('bend_twist',
+        self.add('material_prop',
                  ComputeModuli(surface),
                  promotes=['*'])
         self.add('assembly',

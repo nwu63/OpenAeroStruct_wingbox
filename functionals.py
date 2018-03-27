@@ -3,13 +3,15 @@ import numpy as np
 
 from openmdao.api import Component, Group
 
-try:
-    import OAS_API
-    fortran_flag = True
-    data_type = float
-except:
-    fortran_flag = False
-    data_type = complex
+# try:
+#     import OAS_API
+#     fortran_flag = True
+#     data_type = float
+# except:
+#     fortran_flag = False
+#     data_type = complex
+fortran_flag = False
+data_type = complex
 
 class FunctionalBreguetRange(Component):
     """
@@ -180,7 +182,7 @@ class ComputeCG(Component):
         for surface in surfaces:
             name = surface['name']
 
-            self.add_param(name+'nodes', val=0.)
+#            self.add_param(name+'nodes', val=0.)
             self.add_param(name+'structural_weight', val=0.)
             self.add_param(name+'cg_location', val=np.zeros((3), dtype=data_type))
 

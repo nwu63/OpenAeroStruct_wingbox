@@ -271,7 +271,7 @@ class OASProblem(object):
                     'loads' : None,         # [N] allow the user to input loads
                     'disp' : None,          # [m] nodal displacements of the FEM model
                     'strength_factor_for_upper_skin' : 1., # If strength of upper skin is greater than the material props, use factor greater than 1.
-                    'theta' : 0.,            # [deg] tow angle of the laminate, defined in the same manner as sweep
+                    'theta' : 20.,            # [deg] tow angle of the laminate, defined in the same manner as sweep
 
                     # Constraints
                     'exact_failure_constraint' : False, # if false, use KS function
@@ -604,6 +604,10 @@ class OASProblem(object):
         # Save an N2 diagram for the problem
         if self.prob_dict['record_db']:
             view_model(self.prob, outfile=self.prob_dict['prob_name']+".html", show_browser=False)
+        
+        # Uncomment this to check the partial derivatives of each component
+        #self.prob.root.deriv_options['check_step_size'] = 1.0e-6
+        #self.prob.check_partial_derivatives(compact_print=True); exit()
 
         # If `optimize` == True in prob_dict, perform optimization. Otherwise,
         # simply pass the problem since analysis has already been run.
@@ -643,8 +647,6 @@ class OASProblem(object):
             print("Static margin is:", static_margin)
             self.prob.root.add_metadata('static_margin', static_margin)
 
-        # Uncomment this to check the partial derivatives of each component
-        # self.prob.check_partial_derivatives(compact_print=True)
 
 
     def setup_struct(self):
@@ -690,7 +692,7 @@ class OASProblem(object):
             # analysis and optimization.
             # Here we check and only add the variables that are desvars or a
             # special var, radius, which is necessary to compute weight.
-            indep_vars = [('loads', surface['loads']),('theta',0.)]
+            indep_vars = [('loads', surface['loads']),('theta',surface['theta'])]
             for var in surface['geo_vars']:
                 if var in desvar_names or 'thickness' in var or var in surface['initial_geo']:
                     indep_vars.append((var, surface[var]))
@@ -933,7 +935,7 @@ class OASProblem(object):
                     desvar_names.append(''.join(desvar.split('.')[1:]))
 
             # Add independent variables that do not belong to a specific component
-            indep_vars = []
+            indep_vars = [('theta',surface['theta'])]
             for var in surface['geo_vars']:
                 if var in desvar_names or var in surface['initial_geo'] or 'thickness' in var:
                     indep_vars.append((var, surface[var]))
@@ -1061,7 +1063,6 @@ class OASProblem(object):
             root.connect(name[:-1] + '.Iy', name + 'perf.Iy')
             root.connect(name[:-1] + '.Iz', name + 'perf.Iz')
             root.connect(name[:-1] + '.J', name + 'perf.J')
-            root.connect(name[:-1] + '.Kbt', name + 'perf.Kbt')
             root.connect(name[:-1] + '.E', name + 'perf.E')
             root.connect(name[:-1] + '.G', name + 'perf.G')
             root.connect(name[:-1] + '.htop', name + 'perf.htop')
@@ -1090,6 +1091,7 @@ class OASProblem(object):
             root.connect('coupled.' + name[:-1] + '.cos_sweep', name + 'perf.cos_sweep')
 
             # Connect parameters from the 'coupled' group to the total performance group.
+            #root.connect(name[:-1] + '.nodes', 'total_perf.' + name + 'nodes')
             root.connect('coupled.' + name[:-1] + '.S_ref', 'total_perf.' + name + 'S_ref')
             root.connect('coupled.' + name[:-1] + '.widths', 'total_perf.' + name + 'widths')
             root.connect('coupled.' + name[:-1] + '.chords', 'total_perf.' + name + 'chords')

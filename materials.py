@@ -11,10 +11,10 @@ def getQ(E1,E2,G12,nu12,ang):
     ang = ang/180*np.pi
     T = lambda t:np.array([[np.cos(t)**2,np.sin(t)**2,2*np.sin(t)*np.cos(t)],
                            [np.sin(t)**2,np.cos(t)**2,-2*np.sin(t)*np.cos(t)],
-                           [-np.sin(t)*np.cos(t),np.sin(t)*np.cos(t),np.cos(t)**2 - np.sin(t)**2]],dtype=np.float)
+                           [-np.sin(t)*np.cos(t),np.sin(t)*np.cos(t),np.cos(t)**2 - np.sin(t)**2]],dtype=complex)
     S = np.array([[1/E1,-nu12/E1,0],
                   [-nu12/E1,1/E2,0],
-                  [0,0,1/G12]],dtype=np.float)
+                  [0,0,1/G12]],dtype=complex)
     Q = np.linalg.inv(S)
     Qbar = np.linalg.inv(T(ang)).dot(Q)
     Qbar = Qbar.dot(np.linalg.inv(T(ang)).T)
@@ -56,7 +56,7 @@ def wingbox_props(chord, sparthickness, skinthickness, data_x_upper, data_x_lowe
     theta = twist
 
     rot_mat = np.array([[np.cos(theta), -np.sin(theta)],
-                        [np.sin(theta), np.cos(theta)]])
+                        [np.sin(theta), np.cos(theta)]],dtype=complex)
 
     data_x_upper_2 = data_x_upper.copy()
     data_y_upper_2 = data_y_upper.copy()
@@ -204,7 +204,6 @@ def getModuli(chord, sparthickness, skinthickness, data_x_upper, data_x_lower, d
     V_spar = avg_y_dist*sparthickness/(avg_x_dist*skinthickness + avg_y_dist*sparthickness)
     E = E_spar*V_spar + E_skin*V_skin
     G = G_spar*V_spar + G_skin*V_skin
-    
     # Kbt = 2 * avg_x_dist * Deff[1,2]
     Kbt = 2 * avg_x_dist * Deff_skin[0,2]
     return E, G, Kbt
@@ -237,7 +236,8 @@ class ComputeModuli(Component):
 
             x_loc = unit(P1 - P0)
             spar_ang = 180*(np.arccos(x_loc.dot(self.x_gl)))/np.pi - 90
-            theta = params['theta'] - spar_ang
+            theta = spar_ang - params['theta']
+            #print(params['nodes'].dtype)
             # local fibre angle is then theta - spar_ang where theta is the global fibre angle
             # what about removing the z-component of x_loc (and normalizing it), then dotting with x_gl?
             # x_loc_spar = x_loc.copy()
@@ -245,7 +245,9 @@ class ComputeModuli(Component):
             # x_loc_spar = unit(x_loc_spar)
             # spar_ang = np.rad2deg(np.arccos(x_loc_spar.dot(x_gl))) - 90
 
-
+            # print('params theta: ',params['theta'])
+            # print('spar_ang: ', spar_ang)
+            # print('theta: ', theta)
 
             unknowns['E'],unknowns['G'],unknowns['Kbt'] = getModuli(params['chords_fem'][i],\
             params['sparthickness'][i], params['skinthickness'][i],\
