@@ -283,6 +283,10 @@ class AssembleK(Component):
 
         #if not fortran_flag:
         self.deriv_options['type'] = 'cs'
+        self.deriv_options['check_type'] = 'fd'
+        self.deriv_options['check_form'] = 'central'
+        self.deriv_options['check_step_size'] = 1.0e-6
+        self.deriv_options['check_step_calc'] = 'relative'
 
         self.surface = surface
 
@@ -718,6 +722,11 @@ class SpatialBeamVonMisesTube(Component):
         self.deriv_options['type'] = 'cs'
         # self.deriv_options['form'] = 'central'
 
+        self.deriv_options['check_type'] = 'fd'
+        self.deriv_options['check_form'] = 'central'
+        self.deriv_options['check_step_size'] = 1.0e-6
+        self.deriv_options['check_step_calc'] = 'relative'
+
 
         self.T = np.zeros((3, 3), dtype=complex)
         self.x_gl = np.array([1, 0, 0], dtype=complex)
@@ -753,9 +762,6 @@ class SpatialBeamVonMisesTube(Component):
         E = params['E']
         G = params['G']
         x_gl = self.x_gl
-
-        print('E',E)
-        print('G',G)
 
         num_elems = self.ny - 1
         for ielem in range(self.ny-1):
@@ -800,7 +806,7 @@ class SpatialBeamVonMisesTube(Component):
             vonmises[ielem, 1] = np.sqrt((bottom_bending_stress + left_bending_stress + axial_stress)**2 + 3*torsion_stress**2)
             vonmises[ielem, 2] = np.sqrt((left_bending_stress + axial_stress)**2 + 3*(torsion_stress-vertical_shear)**2) 
             vonmises[ielem, 3] = np.sqrt((right_bending_stress + axial_stress)**2 + 3*(torsion_stress+vertical_shear)**2) / self.tssf
-        print('vonmises',vonmises)
+
 
 
 class SpatialBeamFailureKS(Component):

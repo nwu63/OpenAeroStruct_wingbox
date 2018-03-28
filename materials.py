@@ -168,7 +168,7 @@ def getModuli(chord, sparthickness, skinthickness, data_x_upper, data_x_lower, d
     E1 = 73.1e9
     E2 = E1
     G12 = 30.e9
-    nu12 = 0
+    nu12 = 0.33
     ang = np.array([0,45,-45,90],dtype=complex)
     ang_skin = ang + theta # theta is desvar
     fv_skin = np.array([0.625,0.125,0.125,0.125],dtype=complex)
@@ -211,9 +211,6 @@ def getModuli(chord, sparthickness, skinthickness, data_x_upper, data_x_lower, d
     G = G_spar*V_spar + G_skin*V_skin
     # Kbt = 2 * avg_x_dist * Deff[1,2]
     Kbt = 2 * avg_x_dist * Deff_skin[0,2]
-    # print(np.imag(E))
-    # print(np.imag(G))
-    # print(np.imag(Kbt))
     return E, G, Kbt
 
 class ComputeModuli(Component):
@@ -235,6 +232,10 @@ class ComputeModuli(Component):
         self.add_output('E',     val=np.ones((self.ny - 1),  dtype = complex))
         self.add_output('G',     val=np.ones((self.ny - 1),  dtype = complex))
         self.deriv_options['type'] = 'cs'
+        self.deriv_options['check_type'] = 'fd'
+        self.deriv_options['check_form'] = 'central'
+        self.deriv_options['check_step_size'] = 1.0e-6
+        self.deriv_options['check_step_calc'] = 'relative'
 
     def solve_nonlinear(self, params, unknowns, resids):
         self.x_gl = np.array([1, 0, 0], dtype=complex)
@@ -254,7 +255,7 @@ class ComputeModuli(Component):
             # spar_ang = np.rad2deg(np.arccos(x_loc_spar.dot(x_gl))) - 90
 
 
-            unknowns['E'],unknowns['G'],unknowns['Kbt'] = getModuli(params['chords_fem'][i],\
+            unknowns['E'][i],unknowns['G'][i],unknowns['Kbt'][i] = getModuli(params['chords_fem'][i],\
             params['sparthickness'][i], params['skinthickness'][i],\
             self.data_x_upper, self.data_x_lower, self.data_y_upper, self.data_y_lower,theta)
             # if (x_loc.dtype == np.dtype('complex')):
@@ -323,6 +324,10 @@ class MaterialsTube(Component):
         
         self.deriv_options['type'] = 'cs'
         # self.deriv_options['form'] = 'central'
+        self.deriv_options['check_type'] = 'fd'
+        self.deriv_options['check_form'] = 'central'
+        self.deriv_options['check_step_size'] = 1.0e-8
+        self.deriv_options['check_step_calc'] = 'relative'
 
     def solve_nonlinear(self, params, unknowns, resids):
         

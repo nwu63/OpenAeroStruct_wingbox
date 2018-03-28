@@ -615,7 +615,6 @@ class OASProblem(object):
             # Perform optimization
             self.prob.run()
         # Uncomment this to check the partial derivatives of each component
-        #self.prob.root.deriv_options['check_step_size'] = 1.0e-10
         #self.prob.check_partial_derivatives(compact_print=True); exit()
 
         # If the problem type is aero or aerostruct, we can compute the static margin.
