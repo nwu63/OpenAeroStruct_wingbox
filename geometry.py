@@ -8,13 +8,13 @@ from openmdao.api import Component
 from .b_spline import get_bspline_mtx
 from .spatialbeam import chords_fem
 
-#try:
-#    import OAS_API
-#    fortran_flag = True
-#    data_type = float
-#except:
-#    fortran_flag = False
-#    data_type = complex
+# try:
+#     import OAS_API
+#     fortran_flag = True
+#     data_type = float
+# except:
+#     fortran_flag = False
+#     data_type = complex
 fortran_flag = False
 data_type = complex
 
@@ -298,8 +298,8 @@ def taper(mesh, taper_ratio, symmetry):
     if symmetry:
         x = quarter_chord[:, 1]
         span = x[-1] - x[0]
-        xp = np.array([-span, 0.])
-        fp = np.array([taper_ratio, 1.])
+        xp = np.array([-span, 0.], dtype=data_type)
+        fp = np.array([taper_ratio, 1.], dtype=data_type)
         taper = np.interp(x.real, xp.real, fp.real)
 
         for i in range(num_x):
@@ -310,8 +310,8 @@ def taper(mesh, taper_ratio, symmetry):
     else:
         x = quarter_chord[:, 1]
         span = x[-1] - x[0]
-        xp = np.array([-span/2, 0., span/2])
-        fp = np.array([taper_ratio, 1., taper_ratio])
+        xp = np.array([-span/2, 0., span/2], dtype=data_type)
+        fp = np.array([taper_ratio, 1., taper_ratio], dtype=data_type)
         taper = np.interp(x.real, xp.real, fp.real)
 
         for i in range(num_x):
@@ -400,9 +400,9 @@ class GeometryMesh(Component):
             if len(var.split('_')) > 1:
                 param = var.split('_')[0]
                 if var in ones_list:
-                    val = np.ones(ny,dtype=data_type)
+                    val = np.ones(ny)
                 elif var in zeros_list:
-                    val = np.zeros(ny,dtype=data_type)
+                    val = np.zeros(ny)
                 else:
                     val = surface[var]
             else:
@@ -425,8 +425,8 @@ class GeometryMesh(Component):
         # If the user doesn't provide the radius or it's not a desver, then we must
         # compute it here.
 
-        self.add_output('chords_fem', val=np.ones((ny - 1),dtype=data_type))
-        self.add_output('twist_fem', val=np.ones((ny - 1),dtype=data_type))
+        self.add_output('chords_fem', val=np.ones((ny - 1), dtype=data_type))
+        self.add_output('twist_fem', val=np.ones((ny - 1), dtype=data_type))
 
         self.symmetry = surface['symmetry']
 
@@ -460,7 +460,7 @@ class GeometryMesh(Component):
         dihedral(mesh, self.geo_params['dihedral'], self.symmetry)
         shear_z(mesh, self.geo_params['zshear'])
         rotate(mesh, self.geo_params['twist'], self.symmetry, self.rotate_x)
-
+        
         ch_fem = chords_fem(mesh)
         twist_fem = ch_fem.copy()
         
@@ -477,7 +477,7 @@ class GeometryMesh(Component):
             # Obtain the element nodes
             P0 = nodes[ielem, :]
             P1 = nodes[ielem+1, :]
-            
+        
             elem_vec = (P1 - P0) # vector along element
             temp_vec = elem_vec.copy()
             temp_vec[0] = 0. # vector along element minus x component
@@ -511,6 +511,7 @@ class GeometryMesh(Component):
                 theta_1 = np.arccos(dot_prod_1)
             
             twist_fem[ielem] = (theta_0 + theta_1) / 2 * ch_fem_temp_val / ch_fem[ielem]
+
         unknowns['mesh'] = mesh
         unknowns['chords_fem'] = ch_fem
         unknowns['twist_fem'] = twist_fem
@@ -537,8 +538,8 @@ class MonotonicConstraint(Component):
         self.con_name = 'monotonic_' + var_name
         self.symmetry = surface['symmetry']
         self.ny = surface['num_y']
-        self.add_param(self.var_name, val=np.zeros(self.ny))
-        self.add_output(self.con_name, val=np.zeros(self.ny-1))
+        self.add_param(self.var_name, val=np.zeros(self.ny), dtype=data_type)
+        self.add_output(self.con_name, val=np.zeros(self.ny-1), dtype=data_type)
 
     def solve_nonlinear(self, params, unknowns, resids):
         # Compute the difference between adjacent variable values
@@ -783,7 +784,7 @@ def add_chordwise_panels(mesh, num_x, chord_cos_spacing):
     te = mesh[-1, :, :]
 
     # Create a new mesh with the desired num_x and set the leading and trailing edge values
-    new_mesh = np.zeros((num_x, num_y, 3))
+    new_mesh = np.zeros((num_x, num_y, 3), dtype=data_type)
     new_mesh[ 0, :, :] = le
     new_mesh[-1, :, :] = te
 
@@ -825,7 +826,7 @@ def gen_rect_mesh(num_x, num_y, span, chord, span_cos_spacing=0., chord_cos_spac
         specified parameters.
     """
 
-    mesh = np.zeros((num_x, num_y, 3),dtype=data_type)
+    mesh = np.zeros((num_x, num_y, 3), dtype=data_type)
     ny2 = (num_y + 1) // 2
 
     # Hotfix a special case for spacing bunched at the root and tips
@@ -861,11 +862,12 @@ def gen_rect_mesh(num_x, num_y, span, chord, span_cos_spacing=0., chord_cos_spac
 
     # Special case if there are only 2 chordwise nodes
     if num_x <= 2:
-        full_wing_x = np.array([0., chord],dtype=complex)
+        full_wing_x = np.array([0., chord], dtype=data_type)
 
     for ind_x in range(num_x):
         for ind_y in range(num_y):
             mesh[ind_x, ind_y, :] = [full_wing_x[ind_x], full_wing[ind_y], 0]
+
     return mesh
 
 
@@ -892,8 +894,8 @@ class Bspline(Component):
         self.cpname = cpname
         self.ptname = ptname
         self.jac = get_bspline_mtx(n_input, n_output, order=min(n_input, 4))
-        self.add_param(cpname, val=np.zeros(n_input))
-        self.add_output(ptname, val=np.zeros(n_output))
+        self.add_param(cpname, val=np.zeros(n_input,dtype=data_type))
+        self.add_output(ptname, val=np.zeros(n_output,dtype=data_type))
 
     def solve_nonlinear(self, params, unknowns, resids):
         unknowns[self.ptname] = self.jac.dot(params[self.cpname])

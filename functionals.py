@@ -3,15 +3,13 @@ import numpy as np
 
 from openmdao.api import Component, Group
 
-# try:
-#     import OAS_API
-#     fortran_flag = True
-#     data_type = float
-# except:
-#     fortran_flag = False
-#     data_type = complex
-fortran_flag = False
-data_type = complex
+try:
+    import OAS_API
+    fortran_flag = True
+    data_type = float
+except:
+    fortran_flag = False
+    data_type = complex
 
 class FunctionalBreguetRange(Component):
     """

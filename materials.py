@@ -18,6 +18,7 @@ def getQ(E1,E2,G12,nu12,ang):
     Q = np.linalg.inv(S)
     Qbar = np.linalg.inv(T(ang)).dot(Q)
     Qbar = Qbar.dot(np.linalg.inv(T(ang)).T)
+    #print(np.imag(Qbar[0][0]))
     return Qbar
 
 def wingbox_props(chord, sparthickness, skinthickness, data_x_upper, data_x_lower, data_y_upper, data_y_lower, twist=0.):
@@ -164,6 +165,10 @@ def getModuli(chord, sparthickness, skinthickness, data_x_upper, data_x_lower, d
     E2 = 9.7E9
     G12 = 4.8E9
     nu12 = 0.34
+    # E1 = 73.1e9
+    # E2 = E1
+    # G12 = 30.e9
+    # nu12 = 0
     ang = np.array([0,45,-45,90],dtype=complex)
     ang_skin = ang + theta # theta is desvar
     fv_skin = np.array([0.625,0.125,0.125,0.125],dtype=complex)
@@ -206,6 +211,9 @@ def getModuli(chord, sparthickness, skinthickness, data_x_upper, data_x_lower, d
     G = G_spar*V_spar + G_skin*V_skin
     # Kbt = 2 * avg_x_dist * Deff[1,2]
     Kbt = 2 * avg_x_dist * Deff_skin[0,2]
+    # print(np.imag(E))
+    # print(np.imag(G))
+    # print(np.imag(Kbt))
     return E, G, Kbt
 
 class ComputeModuli(Component):
@@ -245,13 +253,12 @@ class ComputeModuli(Component):
             # x_loc_spar = unit(x_loc_spar)
             # spar_ang = np.rad2deg(np.arccos(x_loc_spar.dot(x_gl))) - 90
 
-            # print('params theta: ',params['theta'])
-            # print('spar_ang: ', spar_ang)
-            # print('theta: ', theta)
 
             unknowns['E'],unknowns['G'],unknowns['Kbt'] = getModuli(params['chords_fem'][i],\
             params['sparthickness'][i], params['skinthickness'][i],\
             self.data_x_upper, self.data_x_lower, self.data_y_upper, self.data_y_lower,theta)
+            # if (x_loc.dtype == np.dtype('complex')):
+            #     print(np.imag(unknowns['E']))
 
 
 class MaterialsTube(Component):

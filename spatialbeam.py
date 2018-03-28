@@ -15,16 +15,16 @@ from scipy.linalg import det
 from numpy.linalg import cond
 from materials import ComputeModuli
 
-# try:
-#     import OAS_API
-#     fortran_flag = True
-#     data_type = float
-# except:
-#     fortran_flag = False
-#     data_type = complex
+try:
+    import OAS_API
+    fortran_flag = True
+    data_type = float
+except:
+    fortran_flag = False
+    data_type = complex
 
-fortran_flag = False
-data_type = complex
+# fortran_flag = False
+# data_type = complex
 
 def norm(vec):
     return np.sqrt(np.sum(vec**2))
@@ -218,71 +218,71 @@ class AssembleK(Component):
 
         self.size = size = 6 * self.ny + 6
 
-        self.add_param('A', val=np.ones((self.ny - 1), dtype=data_type))
-        self.add_param('Iy', val=np.ones((self.ny - 1), dtype=data_type))
-        self.add_param('Iz', val=np.ones((self.ny - 1), dtype=data_type))
-        self.add_param('J', val=np.ones((self.ny - 1), dtype=data_type))
-        self.add_param('nodes', val=np.ones((self.ny, 3), dtype=data_type))
-        self.add_param('Kbt', val=np.ones((self.ny - 1), dtype=data_type))
-        self.add_param('E', val=np.ones((self.ny - 1), dtype=data_type))
-        self.add_param('G', val=np.ones((self.ny - 1), dtype=data_type))
-        self.add_output('K', val=np.zeros((size, size), dtype=data_type))
+        self.add_param('A', val=np.ones((self.ny - 1), dtype=complex))
+        self.add_param('Iy', val=np.ones((self.ny - 1), dtype=complex))
+        self.add_param('Iz', val=np.ones((self.ny - 1), dtype=complex))
+        self.add_param('J', val=np.ones((self.ny - 1), dtype=complex))
+        self.add_param('nodes', val=np.ones((self.ny, 3), dtype=complex))
+        self.add_param('Kbt', val=np.ones((self.ny - 1), dtype=complex))
+        self.add_param('E', val=np.ones((self.ny - 1), dtype=complex))
+        self.add_param('G', val=np.ones((self.ny - 1), dtype=complex))
+        self.add_output('K', val=np.zeros((size, size), dtype=complex))
 
         # Set up arrays to easily set up the K matrix
         self.const2 = np.array([
             [1, -1],
             [-1, 1],
-        ], dtype=data_type)
+        ], dtype=complex)
         self.const_y = np.array([
             [12, -6, -12, -6],
             [-6, 4, 6, 2],
             [-12, 6, 12, 6],
             [-6, 2, 6, 4],
-        ], dtype=data_type)
+        ], dtype=complex)
         self.const_z = np.array([
             [12, 6, -12, 6],
             [6, 4, -6, 2],
             [-12, -6, 12, -6],
             [6, 2, -6, 4],
-        ], dtype=data_type)
+        ], dtype=complex)
         self.const_k = np.array([
             [-12, 6, 12, 6],
             [6, -3, -6, -3],
             [12, -6, -12, -6],
             [6, -3, -6, -3],
-        ], dtype=data_type)
-        self.x_gl = np.array([1, 0, 0], dtype=data_type)
+        ], dtype=complex)
+        self.x_gl = np.array([1, 0, 0], dtype=complex)
 
-        self.K_elem = np.zeros((12, 12), dtype=data_type)
-        self.T_elem = np.zeros((12, 12), dtype=data_type)
-        self.T = np.zeros((3, 3), dtype=data_type)
+        self.K_elem = np.zeros((12, 12), dtype=complex)
+        self.T_elem = np.zeros((12, 12), dtype=complex)
+        self.T = np.zeros((3, 3), dtype=complex)
 
-        self.K = np.zeros((size, size), dtype=data_type)
-        self.forces = np.zeros((size), dtype=data_type)
+        self.K = np.zeros((size, size), dtype=complex)
+        self.forces = np.zeros((size), dtype=complex)
 
-        self.K_a = np.zeros((2, 2), dtype=data_type)
-        self.K_t = np.zeros((2, 2), dtype=data_type)
-        self.K_y = np.zeros((4, 4), dtype=data_type)
-        self.K_z = np.zeros((4, 4), dtype=data_type)
+        self.K_a = np.zeros((2, 2), dtype=complex)
+        self.K_t = np.zeros((2, 2), dtype=complex)
+        self.K_y = np.zeros((4, 4), dtype=complex)
+        self.K_z = np.zeros((4, 4), dtype=complex)
 
-        self.S_a = np.zeros((2, 12), dtype=data_type)
+        self.S_a = np.zeros((2, 12), dtype=complex)
         self.S_a[(0, 1), (0, 6)] = 1.
 
-        self.S_t = np.zeros((2, 12), dtype=data_type)
+        self.S_t = np.zeros((2, 12), dtype=complex)
         self.S_t[(0, 1), (3, 9)] = 1.
 
-        self.S_y = np.zeros((4, 12), dtype=data_type)
+        self.S_y = np.zeros((4, 12), dtype=complex)
         self.S_y[(0, 1, 2, 3), (2, 4, 8, 10)] = 1.
 
-        self.S_z = np.zeros((4, 12), dtype=data_type)
+        self.S_z = np.zeros((4, 12), dtype=complex)
         self.S_z[(0, 1, 2, 3), (1, 5, 7, 11)] = 1.
 
-        self.S_k = np.zeros((12, 12), dtype=data_type)
+        self.S_k = np.zeros((12, 12), dtype=complex)
         self.S_k[(3, 5, 9, 11), (5, 3, 11, 9)] = 1.
         self.S_k[(3, 5, 9, 11), (11, 9, 5, 3)] = -1.
 
-        if not fortran_flag:
-            self.deriv_options['type'] = 'cs'
+        #if not fortran_flag:
+        self.deriv_options['type'] = 'cs'
 
         self.surface = surface
 
@@ -792,7 +792,7 @@ class SpatialBeamVonMisesTube(Component):
             # print("right",right_bending_stress)
             # print("axial", axial_stress)
             # print("torsion", torsion_stress)
-        
+
             vonmises[ielem, 0] = np.sqrt((top_bending_stress + right_bending_stress + axial_stress)**2 + 3*torsion_stress**2) / self.tssf
             vonmises[ielem, 1] = np.sqrt((bottom_bending_stress + left_bending_stress + axial_stress)**2 + 3*torsion_stress**2)
             vonmises[ielem, 2] = np.sqrt((left_bending_stress + axial_stress)**2 + 3*(torsion_stress-vertical_shear)**2) 

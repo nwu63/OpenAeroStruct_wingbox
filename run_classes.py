@@ -38,15 +38,14 @@ from .functionals import TotalPerformance, TotalAeroPerformance, FunctionalBregu
 # from .gs_newton import HybridGSNewton
 # from openmdao.solvers.gs_newton import HybridGSNewton
 
-# try:
-#     import OAS_API
-#     fortran_flag = True
-#     data_type = float
-# except:
-#     fortran_flag = False
-#     data_type = complex
-fortran_flag = False
-data_type = complex
+try:
+    import OAS_API
+    fortran_flag = True
+    data_type = float
+except:
+    fortran_flag = False
+    data_type = complex
+
 class Error(Exception):
     """
     Format the error message in a box to make it clear this
@@ -605,9 +604,6 @@ class OASProblem(object):
         if self.prob_dict['record_db']:
             view_model(self.prob, outfile=self.prob_dict['prob_name']+".html", show_browser=False)
         
-        # Uncomment this to check the partial derivatives of each component
-        #self.prob.root.deriv_options['check_step_size'] = 1.0e-6
-        #self.prob.check_partial_derivatives(compact_print=True); exit()
 
         # If `optimize` == True in prob_dict, perform optimization. Otherwise,
         # simply pass the problem since analysis has already been run.
@@ -618,6 +614,9 @@ class OASProblem(object):
         else:
             # Perform optimization
             self.prob.run()
+        # Uncomment this to check the partial derivatives of each component
+        #self.prob.root.deriv_options['check_step_size'] = 1.0e-10
+        #self.prob.check_partial_derivatives(compact_print=True); exit()
 
         # If the problem type is aero or aerostruct, we can compute the static margin.
         # This is a naive tempoerary implementation that currently finite differences

@@ -5,15 +5,13 @@ Define the transfer components to couple aero and struct analyses.
 from __future__ import division, print_function
 import numpy as np
 
-#try:
-#    import OAS_API
-#    fortran_flag = True
-#    data_type = float
-#except:
-#    fortran_flag = False
-#    data_type = complex
-fortran_flag = False
-data_type = complex
+try:
+   import OAS_API
+   fortran_flag = True
+   data_type = float
+except:
+   fortran_flag = False
+   data_type = complex
 
 from openmdao.api import Component
 
