@@ -105,7 +105,8 @@ def _assemble_system(nodes, A, J, Iy, Iz, Kbt,
             K_y[:, 1] *= L
             K_y[:, 3] *= L
 
-            K_z[:, :] = EIz_L3 * const_z + K2_GJL3 * const_k
+            #K_z[:, :] = EIz_L3 * const_z + K2_GJL3 * const_k
+            K_z[:, :] = EIz_L3 * const_z
             K_z[1, :] *= L
             K_z[3, :] *= L
             K_z[:, 1] *= L
@@ -128,6 +129,8 @@ def _assemble_system(nodes, A, J, Iy, Iz, Kbt,
             K[6*in0:6*in0+6, 6*in1:6*in1+6] += res[:6, 6:]
             K[6*in1:6*in1+6, 6*in1:6*in1+6] += res[6:, 6:]
 
+        #print('cond-1\n',np.linalg.det(K[0:(ielem-2)*6,0:(ielem-2)*6]))
+        
         # Include a scaled identity matrix in the rows and columns
         # corresponding to the structural constraints.
         # Hardcoded 1 constraint for now.
@@ -135,6 +138,7 @@ def _assemble_system(nodes, A, J, Iy, Iz, Kbt,
             for k in range(6):
                 K[-6+k, 6*cons+k] = 1.e9
                 K[6*cons+k, -6+k] = 1.e9
+        #print('cond-2\n',np.linalg.det(K))
 
     return K
 
@@ -438,7 +442,6 @@ class SpatialBeamFEM(Component):
         # print(np.min(params['K']))
         # lu factorization for use with solve_linear
         self.lup = lu_factor(params['K'])
-
         unknowns['disp_aug'] = lu_solve(self.lup, params['forces'])
         resids['disp_aug'] = params['K'].dot(unknowns['disp_aug']) - params['forces']
 

@@ -13,7 +13,7 @@
             "program": "${file}",
             "cwd": "${workspaceFolder}",
             "env": {},
-            "args":["1","30"],
+            "args":["0","14.1664"],
             "envFile": "${workspaceFolder}/.env",
             "debugOptions": [
                 "RedirectOutput"
