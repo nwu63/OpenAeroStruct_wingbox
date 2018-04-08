@@ -259,6 +259,8 @@ class ComputeModuli(Component):
         self.add_output('E',     val=np.ones((self.ny - 1),  dtype = complex))
         self.add_output('G',     val=np.ones((self.ny - 1),  dtype = complex))
         self.deriv_options['type'] = 'cs'
+        self.deriv_options['step_size'] = 1.0e-6
+        self.deriv_options['step_calc'] = 'relative'
         self.deriv_options['check_type'] = 'fd'
         self.deriv_options['check_form'] = 'central'
         self.deriv_options['check_step_size'] = 1.0e-6
@@ -357,7 +359,9 @@ class MaterialsTube(Component):
         self.arange = np.arange((self.ny - 1))
         
         self.deriv_options['type'] = 'cs'
-        # self.deriv_options['form'] = 'central'
+        self.deriv_options['step_size'] = 1.0e-10
+        self.deriv_options['step_calc'] = 'relative'
+
         self.deriv_options['check_type'] = 'fd'
         self.deriv_options['check_form'] = 'central'
         self.deriv_options['check_step_size'] = 1.0e-8
