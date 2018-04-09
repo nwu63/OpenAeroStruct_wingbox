@@ -9,28 +9,27 @@ def unit(vec):
 
 def getQ(E1,E2,G12,nu12,ang):
     ang = ang/180*np.pi
-    T = lambda t:np.array([[np.cos(t)**2,np.sin(t)**2,2*np.sin(t)*np.cos(t)],
-                           [np.sin(t)**2,np.cos(t)**2,-2*np.sin(t)*np.cos(t)],
-                           [-np.sin(t)*np.cos(t),np.sin(t)*np.cos(t),np.cos(t)**2 - np.sin(t)**2]],dtype=complex)
+    # T = lambda t:np.array([[np.cos(t)**2,np.sin(t)**2,2*np.sin(t)*np.cos(t)],
+    #                        [np.sin(t)**2,np.cos(t)**2,-2*np.sin(t)*np.cos(t)],
+    #                        [-np.sin(t)*np.cos(t),np.sin(t)*np.cos(t),np.cos(t)**2 - np.sin(t)**2]],dtype=complex)
     S = np.array([[1/E1,-nu12/E1,0],
                   [-nu12/E1,1/E2,0],
                   [0,0,1/G12]],dtype=complex)
     Q = np.linalg.inv(S)
-    # C = np.cos(ang)
-    # S = np.sin(ang)
-    # Qbar = np.zeros((3,3),dtype=complex)
-    # Qbar[0,0] = Q[0,0]*C**4 + Q[1,1]*S**4 + 2*(Q[0,1] + 2*Q[2,2])*S**2*C**2
-    # Qbar[0,1] = (Q[0,0] + Q[1,1] - 4*Q[2,2])*S**2*C**2 + Q[0,1]*(C**4 + S**4)
-    # Qbar[1,1] = Q[0,0]*S**4 + Q[1,1]*C**4 + 2*(Q[0,1] + 2*Q[2,2])*S**2*C**2
-    # Qbar[0,2] = (Q[0,0] - Q[0,1] - 2*Q[2,2])*C**3*S - (Q[1,1] - Q[0,1] - 2*Q[2,2])*C*S**3
-    # Qbar[1,2] = (Q[0,0] - Q[0,1] - 2*Q[2,2])*C*S**3 - (Q[1,1] - Q[0,1] - 2*Q[2,2])*C**3*S
-    # Qbar[2,2] = (Q[0,0] + Q[1,1] - 2*Q[0,1] - 2*Q[2,2])*S**2*C**2 + Q[2,2]*(S**4 + C**4)
-    # Qbar[2,1] = Qbar[1,2]
-    # Qbar[1,0] = Qbar[0,1]
-    # Qbar[2,0] = Qbar[0,2]
-    Qbar = np.linalg.inv(T(ang)).dot(Q)
-    Qbar = Qbar.dot(np.linalg.inv(T(ang)).T)
-    #print(np.imag(Qbar[0][0]))
+    C = np.cos(ang)
+    S = np.sin(ang)
+    Qbar = np.zeros((3,3),dtype=complex)
+    Qbar[0,0] = Q[0,0]*C**4 + Q[1,1]*S**4 + 2*(Q[0,1] + 2*Q[2,2])*S**2*C**2
+    Qbar[0,1] = (Q[0,0] + Q[1,1] - 4*Q[2,2])*S**2*C**2 + Q[0,1]*(C**4 + S**4)
+    Qbar[1,1] = Q[0,0]*S**4 + Q[1,1]*C**4 + 2*(Q[0,1] + 2*Q[2,2])*S**2*C**2
+    Qbar[0,2] = (Q[0,0] - Q[0,1] - 2*Q[2,2])*C**3*S - (Q[1,1] - Q[0,1] - 2*Q[2,2])*C*S**3
+    Qbar[1,2] = (Q[0,0] - Q[0,1] - 2*Q[2,2])*C*S**3 - (Q[1,1] - Q[0,1] - 2*Q[2,2])*C**3*S
+    Qbar[2,2] = (Q[0,0] + Q[1,1] - 2*Q[0,1] - 2*Q[2,2])*S**2*C**2 + Q[2,2]*(S**4 + C**4)
+    Qbar[2,1] = Qbar[1,2]
+    Qbar[1,0] = Qbar[0,1]
+    Qbar[2,0] = Qbar[0,2]
+    # Qbar = np.linalg.inv(T(ang)).dot(Q)
+    # Qbar = Qbar.dot(np.linalg.inv(T(ang)).T)
     return Qbar
 
 def wingbox_props(chord, sparthickness, skinthickness, data_x_upper, data_x_lower, data_y_upper, data_y_lower, twist=0.):
@@ -183,11 +182,11 @@ def getModuli(chord, sparthickness, skinthickness, data_x_upper, data_x_lower, d
     #nu12_spar = 0.045
     #fv_skin = np.array([0.625,0.125,0.125,0.125],dtype=complex)
     #fv_spar = np.array([0.125,0.375,0.375,0.125],dtype=complex)
-    #-- Aluminum -----
+    ######### Aluminum ##################
     E1_skin = 73.1e9
     E2_skin = E1_skin
     G12_skin = 30.e9
-    nu12_skin = 0.33
+    nu12_skin = E1_skin/(2*G12_skin) - 1
     E1_spar = E1_skin
     E2_spar = E2_skin
     G12_spar = G12_skin
