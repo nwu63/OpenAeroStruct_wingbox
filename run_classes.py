@@ -495,7 +495,7 @@ class OASProblem(object):
                 self.prob.driver.options['optimizer'] = "SNOPT"
                 self.prob.driver.opt_settings = {'Major optimality tolerance': 1e-8,
                                                  'Major feasibility tolerance': 1e-8,
-                                                 'Major iterations limit':500,
+                                                 'Major iterations limit':1000,
                                                  'Minor iterations limit':2000,
                                                  'Iterations limit':1000
                                                  }

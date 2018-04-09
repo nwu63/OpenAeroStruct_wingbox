@@ -173,32 +173,30 @@ def getModuli(chord, sparthickness, skinthickness, data_x_upper, data_x_lower, d
     # Compute average spacing in x and y, prior to rotation
     avg_x_dist = (data_x_upper[-1] - data_x_upper[0] + data_x_lower[-1] - data_x_lower[0])/2 - sparthickness
     avg_y_dist = (data_y_upper[0] - data_y_lower[0] + data_y_upper[-1] - data_y_lower[-1])/2 - skinthickness
-    E1_skin = 117.9E9
-    E2_skin = 9.7E9
-    G12_skin = 4.8E9
-    nu12_skin = 0.34
-    E1_spar = 62.1E9
-    E2_spar = 62.1E9
-    G12_spar = 5E9
-    nu12_spar = 0.045
-    fv_skin = np.array([0.625,0.125,0.125,0.125],dtype=complex)
-    fv_spar = np.array([0.125,0.375,0.375,0.125],dtype=complex)
+    #E1_skin = 117.9E9
+    #E2_skin = 9.7E9
+    #G12_skin = 4.8E9
+    #nu12_skin = 0.34
+    #E1_spar = 62.1E9
+    #E2_spar = 62.1E9
+    #G12_spar = 5E9
+    #nu12_spar = 0.045
+    #fv_skin = np.array([0.625,0.125,0.125,0.125],dtype=complex)
+    #fv_spar = np.array([0.125,0.375,0.375,0.125],dtype=complex)
     #-- Aluminum -----
-    #E1_skin = 73.1e9
-    #E2_skin = E1_skin
-    #G12_skin = 30.e9
-    #nu12_skin = 0.33
-    #E1_spar = E1_skin
-    #E2_spar = E2_skin
-    #G12_spar = G12_skin
-    #nu12_spar = nu12_skin
-    #fv_skin = np.array([0.25,0.25,0.25,0.25],dtype=complex)
-    #fv_spar = np.array([0.25,0.25,0.25,0.25],dtype=complex)
+    E1_skin = 73.1e9
+    E2_skin = E1_skin
+    G12_skin = 30.e9
+    nu12_skin = 0.33
+    E1_spar = E1_skin
+    E2_spar = E2_skin
+    G12_spar = G12_skin
+    nu12_spar = nu12_skin
+    fv_skin = np.array([0.25,0.25,0.25,0.25],dtype=complex)
+    fv_spar = np.array([0.25,0.25,0.25,0.25],dtype=complex)
     
     ang = np.array([0,45,-45,90],dtype=complex)
-    # ang = np.array([0,0,0,0],dtype=complex) + theta
     ang_skin = ang + theta # theta is desvar
-    # ang_skin = ang
     Qavg_skin = np.zeros((3,3),dtype=complex)
     Qavg_spar = np.zeros((3,3),dtype=complex)
     for ilayer in range(4):
