@@ -172,6 +172,7 @@ def getModuli(chord, sparthickness, skinthickness, data_x_upper, data_x_lower, d
     # Compute average spacing in x and y, prior to rotation
     avg_x_dist = (data_x_upper[-1] - data_x_upper[0] + data_x_lower[-1] - data_x_lower[0])/2 - sparthickness
     avg_y_dist = (data_y_upper[0] - data_y_lower[0] + data_y_upper[-1] - data_y_lower[-1])/2 - skinthickness
+    ########## Tim's Composites Data ###########
     #E1_skin = 117.9E9
     #E2_skin = 9.7E9
     #G12_skin = 4.8E9
