@@ -105,8 +105,8 @@ def _assemble_system(nodes, A, J, Iy, Iz, Kbt,
             K_y[:, 1] *= L
             K_y[:, 3] *= L
 
-            #K_z[:, :] = EIz_L3 * const_z + K2_GJL3 * const_k
-            K_z[:, :] = EIz_L3 * const_z
+            K_z[:, :] = EIz_L3 * const_z + K2_GJL3 * const_k
+            #K_z[:, :] = EIz_L3 * const_z
             K_z[1, :] *= L
             K_z[3, :] *= L
             K_z[:, 1] *= L
@@ -250,10 +250,10 @@ class AssembleK(Component):
             [6, 2, -6, 4],
         ], dtype=complex)
         self.const_k = np.array([
-            [-12, 6, 12, 6],
-            [6, -3, -6, -3],
-            [12, -6, -12, -6],
-            [6, -3, -6, -3],
+            [-12, -6, 12, -6],
+            [-6, -3, 6, -3],
+            [12, 6, -12, 6],
+            [-6, -3, 6, -3],
         ], dtype=complex)
         self.x_gl = np.array([1, 0, 0], dtype=complex)
 
