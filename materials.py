@@ -70,10 +70,10 @@ def wingbox_props(chord, sparthickness, skinthickness, data_x_upper, data_x_lowe
     rot_mat = np.array([[np.cos(theta), -np.sin(theta)],
                         [np.sin(theta), np.cos(theta)]],dtype=complex)
 
-    data_x_upper_2 = data_x_upper.copy()
-    data_y_upper_2 = data_y_upper.copy()
-    data_x_lower_2 = data_x_lower.copy()
-    data_y_lower_2 = data_y_lower.copy()
+    data_x_upper_2 = data_x_upper.astype(complex)
+    data_y_upper_2 = data_y_upper.astype(complex)
+    data_x_lower_2 = data_x_lower.astype(complex)
+    data_y_lower_2 = data_y_lower.astype(complex)
         
     for i in range(data_x_upper.size):
         
@@ -148,7 +148,7 @@ def wingbox_props(chord, sparthickness, skinthickness, data_x_upper, data_x_lowe
 
     area_spar = ((data_y_upper[0] - data_y_lower[0] - 2 * skinthickness) + (data_y_upper[-1] - data_y_lower[-1] - 2 * skinthickness)) * sparthickness 
     area += area_spar
-    
+
     # Distances for calculating max bending stresses (KS function used)
     ks_rho = 500. # Hard coded, see Martins and Poon 2005 for more
     fmax_upper = np.max(data_y_upper)
@@ -169,7 +169,6 @@ def getModuli(chord, sparthickness, skinthickness, data_x_upper, data_x_lower, d
     data_x_lower = chord * data_x_lower
     data_y_lower = chord * data_y_lower
 
-    # Compute average spacing in x and y, prior to rotation
     avg_x_dist = (data_x_upper[-1] - data_x_upper[0] + data_x_lower[-1] - data_x_lower[0])/2 - sparthickness
     avg_y_dist = (data_y_upper[0] - data_y_lower[0] + data_y_upper[-1] - data_y_lower[-1])/2 - skinthickness
     ########## Tim's Composites Data ###########
@@ -183,6 +182,8 @@ def getModuli(chord, sparthickness, skinthickness, data_x_upper, data_x_lower, d
     nu12_spar = 0.045
     fv_skin = np.array([0.625,0.125,0.125,0.125],dtype=complex)
     fv_spar = np.array([0.125,0.375,0.375,0.125],dtype=complex)
+    ang_spar = np.array([0,45,-45,90],dtype=complex)
+    ang_skin = ang_spar + theta # theta is desvar'
     ######### Aluminum ##################
     # E1_skin = 73.1e9
     # E2_skin = E1_skin
@@ -194,13 +195,45 @@ def getModuli(chord, sparthickness, skinthickness, data_x_upper, data_x_lower, d
     # nu12_spar = nu12_skin
     # fv_skin = np.array([0.25,0.25,0.25,0.25],dtype=complex)
     # fv_spar = np.array([0.25,0.25,0.25,0.25],dtype=complex)
+    # ang_spar = np.array([0,45,-45,90],dtype=complex)
+    # ang_skin = ang_spar + theta # theta is desvar'
+    ########## Verification Data ###########
+    # E1_skin = 20.59E6# * 6894.76
+    # E2_skin = 1.42E6# * 6894.76
+    # G12_skin = 0.89E6# * 6894.76
+    # nu12_skin = 0.42
+    # E1_spar = E1_skin
+    # E2_spar = E2_skin
+    # G12_spar = G12_skin
+    # nu12_spar = nu12_skin
+    # fv_skin = np.array([0.5,0.5],dtype=complex)
+    # fv_spar = np.array([0.5,0.5],dtype=complex)
+    # t = 0
+    # ang_spar = np.array([-1,1],dtype=complex) * t
+    # ang_skin = np.array([1,1],dtype=complex) * t
+    # ang_spar = np.array([0,90],dtype=complex)
+    # ang_skin = np.array([0,90],dtype=complex)
+    ############# PLATE DATA #####################
+    # E1_skin = 141.0E9
+    # E2_skin = 8.96E9
+    # G12_skin = 4.69E9
+    # nu12_skin = 0.316
+    # E1_spar = E1_skin
+    # E2_spar = E2_skin
+    # G12_spar = G12_skin
+    # nu12_spar = nu12_skin
+    # fv_skin = np.array([1.],dtype=complex)
+    # fv_spar = np.array([1.],dtype=complex)
+    # t = 30.
+    # ang_spar = np.array([1],dtype=complex) * t
+    # ang_skin = np.array([1],dtype=complex) * t
+
     
-    ang = np.array([0,45,-45,90],dtype=complex)
-    ang_skin = ang + theta # theta is desvar
     Qavg_skin = np.zeros((3,3),dtype=complex)
     Qavg_spar = np.zeros((3,3),dtype=complex)
-    for ilayer in range(4):
-        Q_spar = getQ(E1_spar,E2_spar,G12_spar,nu12_spar,ang[ilayer])
+    nlayer = np.size(ang_skin)
+    for ilayer in range(nlayer):
+        Q_spar = getQ(E1_spar,E2_spar,G12_spar,nu12_spar,ang_spar[ilayer])
         Q_skin = getQ(E1_skin,E2_skin,G12_skin,nu12_skin,ang_skin[ilayer])
         Qavg_skin += Q_skin*fv_skin[ilayer]
         Qavg_spar += Q_spar*fv_spar[ilayer]
@@ -209,6 +242,7 @@ def getModuli(chord, sparthickness, skinthickness, data_x_upper, data_x_lower, d
     Aeff_skin = Al + Au
     Beff_skin = (avg_y_dist/2) * Au - (avg_y_dist/2) * Al
     Deff_skin = (avg_y_dist/2)**2 * Aeff_skin
+
 
     Af = Qavg_spar * sparthickness
     Ar = Af
@@ -229,13 +263,17 @@ def getModuli(chord, sparthickness, skinthickness, data_x_upper, data_x_lower, d
     E_spar = 1/Ainv_spar[0,0]/(sparthickness*2)
     G_spar = 1/Ainv_spar[2,2]/(sparthickness*2)
     
-    V_skin = avg_x_dist*skinthickness/(avg_x_dist*skinthickness + avg_y_dist*sparthickness)
-    V_spar = avg_y_dist*sparthickness/(avg_x_dist*skinthickness + avg_y_dist*sparthickness)
+    V_tot = avg_x_dist*skinthickness + avg_y_dist*sparthickness
+    V_skin = avg_x_dist*skinthickness/V_tot
+    V_spar = avg_y_dist*sparthickness/V_tot
     E = E_spar*V_spar + E_skin*V_skin
     G = G_spar*V_spar + G_skin*V_skin
-    Kbt = 2 * avg_x_dist * Deff_skin[0,2]
+    Kbt_skin = 2 * avg_x_dist * Deff_skin[0,2]
+    Kbt_spar = 2 * avg_y_dist * Deff_spar[0,2]
+    Kbt = Kbt_spar*V_spar + Kbt_skin*V_skin
 
     #Kbt = 2 * avg_x_dist * (Deff_skin[0,2] - Deff_skin[0,1]*Deff_skin[1,2]/Deff_skin[1,1])
+    #Kbt = Kbt_skin
     return E, G, Kbt
 
 class ComputeModuli(Component):
@@ -273,13 +311,6 @@ class ComputeModuli(Component):
             x_loc = unit(P1 - P0)
             spar_ang = 180*(np.arccos(x_loc.dot(self.x_gl)))/np.pi - 90
             theta = spar_ang - params['theta']
-            # print('P0: ',P0)
-            # print('P1: ',P1)
-            # print('x_loc: ',x_loc)
-            # print('param theta: ',params['theta'])
-            # print('spar_ang: ',spar_ang)
-            # print('rel theta: ',theta)
-            #print(params['nodes'].dtype)
             # local fibre angle is then theta - spar_ang where theta is the global fibre angle
             # what about removing the z-component of x_loc (and normalizing it), then dotting with x_gl?
             # x_loc_spar = x_loc.copy()
@@ -291,9 +322,6 @@ class ComputeModuli(Component):
             unknowns['E'][i],unknowns['G'][i],unknowns['Kbt'][i] = getModuli(params['chords_fem'][i],\
             params['sparthickness'][i], params['skinthickness'][i],\
             self.data_x_upper, self.data_x_lower, self.data_y_upper, self.data_y_lower,theta)
-            # if (x_loc.dtype == np.dtype('complex')):
-            #     print(np.imag(unknowns['E']))
-            # print('Kbt: ',unknowns['Kbt'])
 
 
 class MaterialsTube(Component):

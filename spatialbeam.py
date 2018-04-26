@@ -88,6 +88,7 @@ def _assemble_system(nodes, A, J, Iy, Iz, Kbt,
             for ind in range(4):
                 T_elem[3*ind:3*ind+3, 3*ind:3*ind+3] = T
 
+
             L = norm(P1 - P0)
             EA_L = E[ielem] * A[ielem] / L
             GJ_L = G[ielem] * J[ielem] / L
@@ -117,7 +118,12 @@ def _assemble_system(nodes, A, J, Iy, Iz, Kbt,
             K_elem += S_t.T.dot(K_t).dot(S_t)
             K_elem += S_y.T.dot(K_y).dot(S_y)
             K_elem += S_z.T.dot(K_z).dot(S_z)
-            K_elem += S_k * K_L
+            K_elem += S_k.dot(K_L)
+
+            # np.set_printoptions(precision=0)
+            # print(T_elem)
+            # exit()
+
 
             res = T_elem.T.dot(K_elem).dot(T_elem)
 
@@ -129,8 +135,6 @@ def _assemble_system(nodes, A, J, Iy, Iz, Kbt,
             K[6*in0:6*in0+6, 6*in1:6*in1+6] += res[:6, 6:]
             K[6*in1:6*in1+6, 6*in1:6*in1+6] += res[6:, 6:]
 
-        #print('cond-1\n',np.linalg.det(K[0:(ielem-2)*6,0:(ielem-2)*6]))
-        
         # Include a scaled identity matrix in the rows and columns
         # corresponding to the structural constraints.
         # Hardcoded 1 constraint for now.
@@ -138,8 +142,6 @@ def _assemble_system(nodes, A, J, Iy, Iz, Kbt,
             for k in range(6):
                 K[-6+k, 6*cons+k] = 1.e9
                 K[6*cons+k, -6+k] = 1.e9
-        #print('cond-2\n',np.linalg.det(K))
-
     return K
 
 
@@ -249,12 +251,14 @@ class AssembleK(Component):
             [-12, -6, 12, -6],
             [6, 2, -6, 4],
         ], dtype=complex)
-        self.const_k = np.array([
+        self.const_k = np.array([ # THIS IS UPDATED
             [-12, -6, 12, -6],
             [-6, -3, 6, -3],
             [12, 6, -12, 6],
             [-6, -3, 6, -3],
         ], dtype=complex)
+
+
         self.x_gl = np.array([1, 0, 0], dtype=complex)
 
         self.K_elem = np.zeros((12, 12), dtype=complex)
@@ -442,7 +446,6 @@ class SpatialBeamFEM(Component):
     def solve_nonlinear(self, params, unknowns, resids):
         """ Use np to solve Ax=b for x.
         """
-        # print(np.min(params['K']))
         # lu factorization for use with solve_linear
         self.lup = lu_factor(params['K'])
         unknowns['disp_aug'] = lu_solve(self.lup, params['forces'])
