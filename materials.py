@@ -366,7 +366,6 @@ class MaterialsTube(Component):
         # self.add_param('radius', val=np.ones((self.ny - 1)))
         self.add_param('chords_fem', val=np.ones((self.ny - 1), dtype = complex))
         self.add_param('twist_fem',  val=np.ones((self.ny - 1),  dtype = complex))
-        self.add_param('thickness',  val=np.ones((self.ny - 1), dtype = complex))
         
         self.add_param('sparthickness', val=np.ones((self.ny - 1), dtype = complex))
         self.add_param('skinthickness', val=np.ones((self.ny - 1),  dtype = complex))

@@ -231,7 +231,6 @@ class OASProblem(object):
                     'xshear_cp' : None,
                     'yshear_cp' : None,
                     'zshear_cp' : None,
-                    'thickness_cp' : None,
                     'skinthickness_cp' : None,
                     'sparthickness_cp' : None,
                     # 'radius_cp' : None,
@@ -244,7 +243,7 @@ class OASProblem(object):
                     #     'zshear_cp', 'span', 'chord_cp', 'taper', 'thickness_cp', 'radius_cp'],
                         
                     'geo_vars' : ['sweep', 'dihedral', 'twist_cp', 'xshear_cp', 'yshear_cp',
-                        'zshear_cp', 'span', 'chord_cp', 'taper', 'thickness_cp', 'sparthickness_cp', 'skinthickness_cp'],
+                        'zshear_cp', 'span', 'chord_cp', 'taper', 'sparthickness_cp', 'skinthickness_cp'],
                     # Aerodynamic performance of the lifting surface at
                     # an angle of attack of 0 (alpha=0).
                     # These CL0 and CD0 values are added to the CL and CD
@@ -367,7 +366,7 @@ class OASProblem(object):
         # We need to initialize some variables to ones and some others to zeros.
         # Here we define the lists for each case.
         # ones_list = ['chord_cp', 'thickness_cp', 'radius_cp']
-        ones_list = ['chord_cp', 'thickness_cp', 'sparthickness_cp', 'skinthickness_cp']
+        ones_list = ['chord_cp', 'sparthickness_cp', 'skinthickness_cp']
         zeros_list = ['twist_cp', 'xshear_cp', 'yshear_cp', 'zshear_cp']
         surf_dict['bsp_vars'] = ones_list + zeros_list
 
@@ -420,7 +419,14 @@ class OASProblem(object):
         # surf_dict['radius'] = radius
 
         # Set initial thicknesses
-        surf_dict['thickness'] = chord_fem / 10
+        surf_dict['skinthickness'] = chord_fem.real / 20
+        
+        if surf_dict['skinthickness_cp'] is None:
+            surf_dict['skinthickness_cp'] = np.ones(surf_dict['num_' + 'skinthickness_cp'], dtype=data_type)
+            surf_dict['skinthickness_cp'] *= np.max(surf_dict['skinthickness'])
+        if surf_dict['sparthickness_cp'] is None:
+            surf_dict['sparthickness_cp'] = np.ones(surf_dict['num_' + 'sparthickness_cp'], dtype=data_type)
+            surf_dict['sparthickness_cp'] *= np.max(surf_dict['skinthickness'])
 
         # We now loop through the possible bspline variables and populate
         # the 'initial_geo' list with the variables that the geometry
@@ -449,14 +455,9 @@ class OASProblem(object):
             elif var in input_dict.keys():
                 surf_dict['initial_geo'].append(var)
 
-        if 'thickness_cp' not in surf_dict['initial_geo']:
-            surf_dict['thickness_cp'] *= np.max(surf_dict['thickness'])
-            surf_dict['sparthickness_cp'] *= np.max(surf_dict['thickness'])
-            surf_dict['skinthickness_cp'] *= np.max(surf_dict['thickness'])
-
         if surf_dict['loads'] is None:
             # Set default loads at the tips
-            loads = np.zeros((surf_dict['thickness'].shape[0] + 1, 6), dtype=data_type)
+            loads = np.zeros((surf_dict['skinthickness'].shape[0] + 1, 6), dtype=data_type)
             loads[0, 2] = 1e4
             if not surf_dict['symmetry']:
                 loads[-1, 2] = 1e4
@@ -603,7 +604,6 @@ class OASProblem(object):
         # Save an N2 diagram for the problem
         if self.prob_dict['record_db']:
             view_model(self.prob, outfile=self.prob_dict['prob_name']+".html", show_browser=False)
-        
 
         # If `optimize` == True in prob_dict, perform optimization. Otherwise,
         # simply pass the problem since analysis has already been run.
@@ -722,7 +722,7 @@ class OASProblem(object):
                 if var in desvar_names or var in surface['initial_geo'] or 'thickness' in var:
                     n_pts = surface['num_y']
                     # if var in ['thickness_cp', 'radius_cp']:
-                    if var in ['thickness_cp', 'skinthickness_cp', 'sparthickness_cp']:
+                    if var in ['skinthickness_cp', 'sparthickness_cp']:
                         n_pts -= 1
                     trunc_var = var.split('_')[0]
                     tmp_group.add(trunc_var + '_bsp',
@@ -801,7 +801,7 @@ class OASProblem(object):
                 if var in desvar_names or var in surface['initial_geo']:
                     n_pts = surface['num_y']
                     # if var in ['thickness_cp', 'radius_cp']:
-                    if var in ['thickness_cp', 'sparthickness_cp', 'skinthickness_cp']:
+                    if var in ['sparthickness_cp', 'skinthickness_cp']:
                         n_pts -= 1
                     trunc_var = var.split('_')[0]
                     tmp_group.add(trunc_var + '_bsp',
@@ -960,7 +960,7 @@ class OASProblem(object):
                 if var in desvar_names or var in surface['initial_geo'] or 'thickness' in var:
                     n_pts = surface['num_y']
                     # if var in ['thickness_cp', 'radius_cp']:
-                    if var in ['thickness_cp', 'sparthickness_cp', 'skinthickness_cp']:
+                    if var in ['sparthickness_cp', 'skinthickness_cp']:
                         n_pts -= 1
                     trunc_var = var.split('_')[0]
                     tmp_group.add(trunc_var + '_bsp',
@@ -1067,7 +1067,6 @@ class OASProblem(object):
             root.connect(name[:-1] + '.hbottom', name + 'perf.hbottom')
             root.connect(name[:-1] + '.hleft', name + 'perf.hleft')
             root.connect(name[:-1] + '.hright', name + 'perf.hright')
-            root.connect(name[:-1] + '.thickness', name + 'perf.thickness')
             root.connect(name[:-1] + '.sparthickness', name + 'perf.sparthickness')
             root.connect(name[:-1] + '.skinthickness', name + 'perf.skinthickness')
 
@@ -1089,7 +1088,6 @@ class OASProblem(object):
             root.connect('coupled.' + name[:-1] + '.cos_sweep', name + 'perf.cos_sweep')
 
             # Connect parameters from the 'coupled' group to the total performance group.
-            #root.connect(name[:-1] + '.nodes', 'total_perf.' + name + 'nodes')
             root.connect('coupled.' + name[:-1] + '.S_ref', 'total_perf.' + name + 'S_ref')
             root.connect('coupled.' + name[:-1] + '.widths', 'total_perf.' + name + 'widths')
             root.connect('coupled.' + name[:-1] + '.chords', 'total_perf.' + name + 'chords')

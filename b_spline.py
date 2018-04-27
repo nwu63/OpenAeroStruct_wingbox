@@ -4,7 +4,6 @@ import scipy.sparse
 
 def get_bspline_mtx(num_cp, num_pt, order=4):
     """ Create Jacobian to fit a bspline to a set of data.
-
     Parameters
     ----------
     num_cp : int
@@ -13,13 +12,11 @@ def get_bspline_mtx(num_cp, num_pt, order=4):
         Number of points.
     order : int, optional
         Order of b-spline fit.
-
     Returns
     -------
     out : CSR sparse matrix
         Matrix that gives the points vector when multiplied by the control
         points vector.
-
     """
     
     knots = np.zeros(num_cp + order)
