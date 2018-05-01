@@ -174,10 +174,14 @@ class Display(object):
                 elif 'disp_aug' in key and 'coupled' not in key:
                     names.append(key.split('.')[0])
 
+            
+            names = [names[1]]
             self.names = names
             n_names = len(names)
 
             self.twist_included = False
+
+            
 
             # Loop through each of the surfaces
             for name in names:
@@ -221,7 +225,7 @@ class Display(object):
                     short_name = name.split('.')[1:][0]
 
                     self.mesh.append(case_data['Unknowns'][short_name+'.mesh'])
-                    self.radius.append(case_data['Unknowns'][short_name+'.thickness'])
+                    self.radius.append(case_data['Unknowns'][short_name+'.sparthickness'])
                     self.sparthickness.append(case_data['Unknowns'][short_name+'.sparthickness'])
                     self.skinthickness.append(case_data['Unknowns'][short_name+'.skinthickness'])
                     self.vonmises.append(
@@ -445,7 +449,7 @@ class Display(object):
             span = m_vals[0, -1, 1] - m_vals[0, 0, 1]
             rel_span = (m_vals[0, :, 1] - m_vals[0, 0, 1]) * 2 / span - 1
             span_diff = ((m_vals[0, :-1, 1] + m_vals[0, 1:, 1]) / 2 - m_vals[0, 0, 1]) * 2 / span - 1
-
+            print(span_diff);exit()
             if self.show_wing:
                 t_vals = self.twist[self.curr_pos*n_names+j]
                 l_vals = self.lift[self.curr_pos*n_names+j]

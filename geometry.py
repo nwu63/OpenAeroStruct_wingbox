@@ -460,7 +460,7 @@ class GeometryMesh(Component):
         dihedral(mesh, self.geo_params['dihedral'], self.symmetry)
         shear_z(mesh, self.geo_params['zshear'])
         rotate(mesh, self.geo_params['twist'], self.symmetry, self.rotate_x)
-        
+
         ch_fem = chords_fem(mesh)
         twist_fem = ch_fem.copy()
         

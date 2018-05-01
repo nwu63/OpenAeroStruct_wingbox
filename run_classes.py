@@ -23,7 +23,7 @@ import numpy as np
 # OpenMDAO modules
 # =============================================================================
 from openmdao.api import IndepVarComp, Problem, Group, ScipyOptimizer, Newton, ScipyGMRES, LinearGaussSeidel, NLGaussSeidel, SqliteRecorder, profile, CaseReader, DirectSolver
-from openmdao.api import view_model
+from openmdao.api import view_model, ExecComp
 from six import iteritems
 
 # =============================================================================
@@ -907,7 +907,6 @@ class OASProblem(object):
 
         # Create the base root-level group
         root = Group()
-        coupled = Group()
 
         # Create the problem and assign the root group
         self.prob = Problem()
@@ -980,6 +979,54 @@ class OASProblem(object):
             name = name[:-1]
             root.add(name, tmp_group, promotes=[])
 
+        coupled = self.setup_coupled_group(1., name_orig)
+        root.add('coupled', coupled, promotes=['v'])
+
+        coupled_25g = self.setup_coupled_group(self.prob_dict['g_factor'], name_orig)
+        root.add('coupled_25g', coupled_25g, promotes=['v'])
+
+        self.setup_total_perf_group(root, 1.)
+        self.setup_total_perf_group(root, self.prob_dict['g_factor'])
+
+        # Add problem information as an independent variables component
+        prob_vars = [('v', self.prob_dict['v']),
+            ('alpha', self.prob_dict['alpha']),
+            ('alpha_25g', self.prob_dict['alpha']),
+            ('M', self.prob_dict['M']),
+            ('re', self.prob_dict['Re']/self.prob_dict['reynolds_length']),
+            ('rho', self.prob_dict['rho']),
+            ('rho_25g', self.prob_dict['rho_25g']),
+            ]
+
+        root.add('prob_vars',
+                 IndepVarComp(prob_vars),
+                 promotes=['*'])
+
+        root.add('alpha_con',
+            ExecComp('alpha_con = alpha_25g - alpha'),
+            promotes=['*'],
+        )
+
+        # Actually set up the system
+        self.setup_prob()
+
+
+    def setup_coupled_group(self, g_factor, name_orig):
+
+        original_g = self.prob_dict['g']
+        new_g = original_g * g_factor
+        self.prob_dict['g'] = new_g
+
+        root = self.prob.root
+        coupled = Group()
+
+        # Loop over each surface in the surfaces list
+        for surface in self.surfaces:
+
+            # Get the surface name and create a group to contain components
+            # only for this surface
+            name = surface['name']
+
             # Add components to the 'coupled' group for each surface.
             # The 'coupled' group must contain all components and parameters
             # needed to converge the aerostructural system.
@@ -1013,10 +1060,26 @@ class OASProblem(object):
                      VLMFunctionals(surface, self.prob_dict),
                      promotes=['*'])
 
-            root.add(name_orig + 'perf', tmp_group, promotes=["rho", "v", "alpha", "re", "M"])
-
-            root.add_metadata(surface['name'] + 'yield_stress', surface['yield'])
-            root.add_metadata(surface['name'] + 'fem_origin', surface['fem_origin'])
+            if g_factor == 1.:
+                root.add(name_orig + 'perf', tmp_group, promotes=["v", "re", "M"])
+                root.add_metadata(surface['name'] + 'yield_stress', surface['yield'])
+                root.add_metadata(surface['name'] + 'fem_origin', surface['fem_origin'])
+                coupled_name = 'coupled.'
+                perf_name = 'perf.'
+                alpha_name = 'alpha'
+                rho_name = 'rho'
+                total_perf_name = 'total_perf.'
+            else:
+                root.add(name_orig + 'perf_25g', tmp_group, promotes=["v", "re", "M"])
+                coupled_name = 'coupled_25g.'
+                perf_name = 'perf_25g.'
+                alpha_name = 'alpha_25g'
+                rho_name = 'rho_25g'
+                total_perf_name = 'total_perf_25g.'
+            root.connect(alpha_name, coupled_name + 'alpha')
+            root.connect(alpha_name, name_orig + perf_name + 'alpha')
+            root.connect(rho_name, coupled_name + 'rho')
+            root.connect(rho_name, name_orig + perf_name + 'rho')
 
         # Add a single 'aero_states' component for the whole system within the
         # coupled group.
@@ -1029,73 +1092,71 @@ class OASProblem(object):
         for surface in self.surfaces:
             name = surface['name']
 
-            root.connect(name[:-1] + '.K', 'coupled.' + name[:-1] + '.K')
+            root.connect(name[:-1] + '.K', coupled_name + name[:-1] + '.K')
 
             # Perform the connections with the modified names within the
             # 'aero_states' group.
-            root.connect('coupled.' + name[:-1] + '.def_mesh', 'coupled.aero_states.' + name + 'def_mesh')
-            root.connect('coupled.' + name[:-1] + '.b_pts', 'coupled.aero_states.' + name + 'b_pts')
-            root.connect('coupled.' + name[:-1] + '.c_pts', 'coupled.aero_states.' + name + 'c_pts')
-            root.connect('coupled.' + name[:-1] + '.normals', 'coupled.aero_states.' + name + 'normals')
+            root.connect(coupled_name + name[:-1] + '.def_mesh', coupled_name + 'aero_states.' + name + 'def_mesh')
+            root.connect(coupled_name + name[:-1] + '.b_pts', coupled_name + 'aero_states.' + name + 'b_pts')
+            root.connect(coupled_name + name[:-1] + '.c_pts', coupled_name + 'aero_states.' + name + 'c_pts')
+            root.connect(coupled_name + name[:-1] + '.normals', coupled_name + 'aero_states.' + name + 'normals')
 
             # Connect the results from 'aero_states' to the performance groups
-            root.connect('coupled.aero_states.' + name + 'sec_forces', name + 'perf' + '.sec_forces')
+            root.connect(coupled_name + 'aero_states.' + name + 'sec_forces', name + perf_name + 'sec_forces')
 
             # Connect the results from 'coupled' to the performance groups
-            root.connect('coupled.' + name[:-1] + '.def_mesh', 'coupled.' + name + 'loads.def_mesh')
-            root.connect('coupled.aero_states.' + name + 'sec_forces', 'coupled.' + name + 'loads.sec_forces')
+            root.connect(coupled_name + name[:-1] + '.def_mesh', coupled_name + name + 'loads.def_mesh')
+            root.connect(coupled_name + 'aero_states.' + name + 'sec_forces', coupled_name + name + 'loads.sec_forces')
 
             # Connect the output of the loads component with the FEM
             # displacement parameter. This links the coupling within the coupled
             # group that necessitates the subgroup solver.
-            root.connect('coupled.' + name + 'loads.loads', 'coupled.' + name[:-1] + '.loads')
+            root.connect(coupled_name + name + 'loads.loads', coupled_name + name[:-1] + '.loads')
 
             # Connect aerodyamic mesh to coupled group mesh
-            root.connect(name[:-1] + '.mesh', 'coupled.' + name[:-1] + '.mesh')
+            root.connect(name[:-1] + '.mesh', coupled_name + name[:-1] + '.mesh')
 
             # Connect performance calculation variables
-            # root.connect(name[:-1] + '.radius', name + 'perf.radius')
-            root.connect(name[:-1] + '.A', name + 'perf.A')
-            root.connect(name[:-1] + '.A_enc', name + 'perf.A_enc')
-            root.connect(name[:-1] + '.A_spar', name + 'perf.A_spar')
-            root.connect(name[:-1] + '.Iy', name + 'perf.Iy')
-            root.connect(name[:-1] + '.Iz', name + 'perf.Iz')
-            root.connect(name[:-1] + '.J', name + 'perf.J')
-            root.connect(name[:-1] + '.E', name + 'perf.E')
-            root.connect(name[:-1] + '.G', name + 'perf.G')
-            root.connect(name[:-1] + '.htop', name + 'perf.htop')
-            root.connect(name[:-1] + '.hbottom', name + 'perf.hbottom')
-            root.connect(name[:-1] + '.hleft', name + 'perf.hleft')
-            root.connect(name[:-1] + '.hright', name + 'perf.hright')
-            root.connect(name[:-1] + '.sparthickness', name + 'perf.sparthickness')
-            root.connect(name[:-1] + '.skinthickness', name + 'perf.skinthickness')
-
-            # Connection performance functional variables
-            root.connect(name + 'perf.structural_weight', 'total_perf.' + name + 'structural_weight')
-            root.connect(name + 'perf.L', 'total_perf.' + name + 'L')
-            root.connect(name + 'perf.CL', 'total_perf.' + name + 'CL')
-            root.connect(name + 'perf.CD', 'total_perf.' + name + 'CD')
-            root.connect('coupled.aero_states.' + name + 'sec_forces', 'total_perf.' + name + 'sec_forces')
+            # root.connect(name[:-1] + '.radius', name + perf_name + 'radius')
+            root.connect(name[:-1] + '.A', name + perf_name + 'A')
+            root.connect(name[:-1] + '.A_enc', name + perf_name + 'A_enc')
+            root.connect(name[:-1] + '.A_spar', name + perf_name + 'A_spar')
+            root.connect(name[:-1] + '.Iy', name + perf_name + 'Iy')
+            root.connect(name[:-1] + '.Iz', name + perf_name + 'Iz')
+            root.connect(name[:-1] + '.J', name + perf_name + 'J')
+            root.connect(name[:-1] + '.E', name + perf_name + 'E')
+            root.connect(name[:-1] + '.G', name + perf_name + 'G')
+            root.connect(name[:-1] + '.htop', name + perf_name + 'htop')
+            root.connect(name[:-1] + '.hbottom', name + perf_name + 'hbottom')
+            root.connect(name[:-1] + '.hleft', name + perf_name + 'hleft')
+            root.connect(name[:-1] + '.hright', name + perf_name + 'hright')
+            root.connect(name[:-1] + '.sparthickness', name + perf_name + 'sparthickness')
+            root.connect(name[:-1] + '.skinthickness', name + perf_name + 'skinthickness')
 
             # Connect parameters from the 'coupled' group to the performance
             # groups for the individual surfaces.
-            root.connect(name[:-1] + '.nodes', name + 'perf.nodes')
-            root.connect('coupled.' + name[:-1] + '.disp', name + 'perf.disp')
-            root.connect('coupled.' + name[:-1] + '.S_ref', name + 'perf.S_ref')
-            root.connect('coupled.' + name[:-1] + '.widths', name + 'perf.widths')
-            root.connect('coupled.' + name[:-1] + '.chords', name + 'perf.chords')
-            root.connect('coupled.' + name[:-1] + '.lengths', name + 'perf.lengths')
-            root.connect('coupled.' + name[:-1] + '.cos_sweep', name + 'perf.cos_sweep')
+            root.connect(name[:-1] + '.nodes', name + perf_name + 'nodes')
+            root.connect(coupled_name + name[:-1] + '.disp', name + perf_name + 'disp')
+            root.connect(coupled_name + name[:-1] + '.S_ref', name + perf_name + 'S_ref')
+            root.connect(coupled_name + name[:-1] + '.widths', name + perf_name + 'widths')
+            root.connect(coupled_name + name[:-1] + '.chords', name + perf_name + 'chords')
+            root.connect(coupled_name + name[:-1] + '.lengths', name + perf_name + 'lengths')
+            root.connect(coupled_name + name[:-1] + '.cos_sweep', name + perf_name + 'cos_sweep')
 
             # Connect parameters from the 'coupled' group to the total performance group.
-            root.connect('coupled.' + name[:-1] + '.S_ref', 'total_perf.' + name + 'S_ref')
-            root.connect('coupled.' + name[:-1] + '.widths', 'total_perf.' + name + 'widths')
-            root.connect('coupled.' + name[:-1] + '.chords', 'total_perf.' + name + 'chords')
-            root.connect('coupled.' + name[:-1] + '.b_pts', 'total_perf.' + name + 'b_pts')
-            root.connect(name + 'perf.cg_location', 'total_perf.' + name + 'cg_location')
+            root.connect(coupled_name + name[:-1] + '.S_ref', total_perf_name + name + 'S_ref')
+            root.connect(coupled_name + name[:-1] + '.widths', total_perf_name + name + 'widths')
+            root.connect(coupled_name + name[:-1] + '.chords', total_perf_name + name + 'chords')
+            root.connect(coupled_name + name[:-1] + '.b_pts', total_perf_name + name + 'b_pts')
+            root.connect(name + 'perf.cg_location', total_perf_name + name + 'cg_location')
 
-        coupled.set_order(['wing', 'aero_states', 'wing_loads'])
-        coupled.wing.set_order(['struct_states', 'def_mesh', 'aero_geom'])
+            # Connection performance functional variables
+            root.connect(name + perf_name + 'structural_weight', total_perf_name + name + 'structural_weight')
+            root.connect(name + perf_name + 'L', total_perf_name + name + 'L')
+            root.connect(name + perf_name + 'D', total_perf_name + name + 'D')
+            root.connect(name + perf_name + 'CL', total_perf_name + name + 'CL')
+            root.connect(name + perf_name + 'CD', total_perf_name + name + 'CD')
+            root.connect(coupled_name + 'aero_states.' + name + 'sec_forces', total_perf_name + name + 'sec_forces')
 
         # # Set solver properties for the coupled group
         # coupled.ln_solver = ScipyGMRES()
@@ -1118,6 +1179,9 @@ class OASProblem(object):
         #     coupled.nl_solver.options['iprint'] = 1
         
         solver_combo = self.prob_dict['solver_combo']
+
+        coupled.set_order(['wing', 'aero_states', 'wing_loads'])
+        coupled.wing.set_order(['struct_states', 'def_mesh', 'aero_geom'])
 
         if solver_combo == 'gs_wo_aitken':
             coupled.ln_solver = ScipyGMRES()
@@ -1145,13 +1209,13 @@ class OASProblem(object):
         if solver_combo == 'newton_gmres':
 
             coupled.ln_solver = ScipyGMRES()
-            coupled.ln_solver.options['maxiter'] = 200
+            coupled.ln_solver.options['maxiter'] = 500
             coupled.ln_solver.options['atol'] =1e-12
             coupled.ln_solver.preconditioner = LinearGaussSeidel()
             coupled.ln_solver.preconditioner.options['maxiter'] = 1
             # coupled.aero_states.ln_solver = LinearGaussSeidel()
             coupled.nl_solver = Newton()
-            coupled.nl_solver.options['maxiter'] = 30
+            coupled.nl_solver.options['maxiter'] = 1000
             coupled.nl_solver.options['solve_subsystems'] = True
             
             # print(coupled.nl_solver.options['iprint'])
@@ -1180,28 +1244,22 @@ class OASProblem(object):
             
         coupled.ln_solver.options['iprint'] = self.prob_dict['print_level']
         coupled.nl_solver.options['iprint'] = self.prob_dict['print_level']
-        
 
-        # Add the coupled group to the root problem
-        root.add('coupled', coupled, promotes=['v', 'alpha', 'rho'])
+        # Reset g back to the 1g state
+        self.prob_dict['g'] = original_g
 
-        # Add problem information as an independent variables component
-        prob_vars = [('v', self.prob_dict['v']),
-            ('alpha', self.prob_dict['alpha']),
-            ('M', self.prob_dict['M']),
-            ('re', self.prob_dict['Re']/self.prob_dict['reynolds_length']),
-            ('rho', self.prob_dict['rho'])]
+        return coupled
 
-        root.add('prob_vars',
-                 IndepVarComp(prob_vars),
-                 promotes=['*'])
+    def setup_total_perf_group(self, root, g_factor):
 
         # Add functionals to evaluate performance of the system.
         # Note that only the interesting results are promoted here; not all
         # of the parameters.
-        root.add('total_perf',
-                 TotalPerformance(self.surfaces, self.prob_dict),
-                 promotes=['L_equals_W', 'fuelburn', 'CM', 'CL', 'CD', 'v', 'rho', 'cg', 'weighted_obj', 'total_weight'])
-
-        # Actually set up the system
-        self.setup_prob()
+        if g_factor == 1.:
+            root.add('total_perf',
+                     TotalPerformance(self.surfaces, self.prob_dict, g_factor),
+                     promotes=['L_equals_W', 'fuelburn', 'CM', 'CL', 'CD', 'v', 'rho', 'cg', 'weighted_obj', 'total_weight'])
+        else:
+            root.add('total_perf_25g',
+                     TotalPerformance(self.surfaces, self.prob_dict, g_factor),
+                     promotes=['v', 'rho'])

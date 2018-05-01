@@ -714,7 +714,6 @@ class SpatialBeamVonMisesTube(Component):
         self.add_param('Iz', val=np.zeros((self.ny - 1), dtype=complex))
         self.add_param('J', val=np.zeros((self.ny - 1), dtype=complex))
         self.add_param('A_enc', val=np.zeros((self.ny - 1), dtype=complex))
-        self.add_param('thickness', val=np.zeros((self.ny - 1)), dtype=complex)
         self.add_param('A_spar', val=np.ones((self.ny - 1),  dtype = complex))
         self.add_param('E', val=np.ones((self.ny - 1),  dtype = complex))
         self.add_param('G', val=np.ones((self.ny - 1),  dtype = complex))
@@ -761,7 +760,6 @@ class SpatialBeamVonMisesTube(Component):
         hbottom = params['hbottom']
         hleft = params['hleft']
         hright = params['hright']
-        thickness = params['thickness']
         sparthickness = params['sparthickness']
         skinthickness = params['skinthickness']
         
